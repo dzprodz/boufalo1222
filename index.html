@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xtream IPTV Web App - Login</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="login-container">
+        <h1>Welcome Back</h1>
+        <p>Login to access your Xtream IPTV channels.</p>
+        <form id="login-form">
+            <div class="input-group">
+                <label for="server-url">Server URL (e.g., http://my.iptv.server:8080)</label>
+                <input type="text" id="server-url" name="server-url" required placeholder="http://your.server.url:port">
+            </div>
+            <div class="input-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required placeholder="Your Username">
+            </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required placeholder="Your Password">
+            </div>
+            <button type="submit" id="login-button">Login</button>
+            <div id="message-area" class="message-area"></div>
+        </form>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
