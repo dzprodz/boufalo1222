@@ -2,9 +2,15 @@
 window.currentUserInfo = null;
 window.currentServerUrl = null;
 // Global variables for search
-window.originalChannelsForCategory = null; // Stores the full list for the active category
-window.currentCategoryType = null; // Stores the type of the active category
+window.originalChannelsForCategory = null; 
+window.currentCategoryType = null; 
 
+// Global HLS.js instance and player elements
+let hls = null; 
+let playerModal = null;
+let videoPlayer = null;
+let closePlayerButton = null;
+let playerStreamInfo = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
@@ -17,8 +23,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainAppSection = document.getElementById('main-app-section');
     const searchBox = document.getElementById('search-box');
 
+    // Player DOM Elements
+    playerModal = document.getElementById('player-modal');
+    videoPlayer = document.getElementById('video-player');
+    closePlayerButton = document.getElementById('close-player-button');
+    playerStreamInfo = document.getElementById('player-stream-info');
+
     if (searchBox) {
         searchBox.addEventListener('input', handleSearch);
+    }
+
+    if (closePlayerButton) {
+        closePlayerButton.addEventListener('click', closePlayer);
     }
 
     checkForExistingSession();
@@ -109,8 +125,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function clearMessages() {
-        messageArea.textContent = '';
-        messageArea.className = 'message-area';
+        if (!playerModal || playerModal.style.display === 'none') {
+             messageArea.textContent = '';
+             messageArea.className = 'message-area';
+        }
     }
 
     function saveSession(userInfo, serverInfo, loggedInServerUrl) {
@@ -349,7 +367,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!items || (Array.isArray(items) && items.length === 0)) {
             if (categoryType === 'series' && items && typeof items === 'object' && items.info) {
-                // Valid single series info object
             } else {
                 channelsContainer.innerHTML = '<p>No channels or items found.</p>'; 
                 return;
@@ -415,9 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleStreamClick(streamData) {
         const decodedStreamName = decodeURIComponent(streamData.streamName);
-        console.log('Stream clicked (raw data):', streamData); // Log raw data attributes
-    
-        // Retrieve server and user credentials
+        
         const userInfo = window.currentUserInfo || JSON.parse(localStorage.getItem('xtream_user_info'));
         let serverUrl = window.currentServerUrl || localStorage.getItem('xtream_last_login_url');
     
@@ -432,66 +447,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = userInfo.password;
         const streamId = streamData.streamId;
         let streamUrl = '';
-        let fullStreamInfo = {}; // To store all details for player
+        let fullStreamInfo = {};
+        let isHlsStream = false; // Flag to determine if HLS.js should be used
     
         switch (streamData.streamType) {
             case 'live':
                 streamUrl = `${serverUrl}/live/${username}/${password}/${streamId}.ts`;
-                fullStreamInfo = {
-                    type: 'live', name: decodedStreamName, source: streamUrl, streamId: streamId,
-                    originalData: streamData // Added for completeness
-                };
+                isHlsStream = true; // Live streams are typically HLS
+                fullStreamInfo = { type: 'live', name: decodedStreamName, source: streamUrl, streamId: streamId, originalData: streamData };
                 break;
             case 'vod':
                 let containerExtension = 'mp4'; // Default
                 if (window.originalChannelsForCategory && Array.isArray(window.originalChannelsForCategory)) {
-                    // Ensure comparison is with correct ID property (stream_id for VODs, series_id for series list)
-                    const vodItem = window.originalChannelsForCategory.find(item => String(item.stream_id) === String(streamId));
+                    const vodItem = window.originalChannelsForCategory.find(item => (String(item.stream_id) === String(streamId) || String(item.id) === String(streamId)));
                     if (vodItem && vodItem.container_extension) {
-                        containerExtension = vodItem.container_extension;
+                        containerExtension = vodItem.container_extension.toLowerCase();
                     }
                 }
                 streamUrl = `${serverUrl}/movie/${username}/${password}/${streamId}.${containerExtension}`;
-                fullStreamInfo = {
-                    type: 'vod', name: decodedStreamName, source: streamUrl, streamId: streamId, 
-                    containerExtension: containerExtension, originalData: streamData // Added for completeness
-                };
+                if (containerExtension === 'm3u8') {
+                    isHlsStream = true;
+                } else {
+                    isHlsStream = false; // It's a progressive download (mp4, mkv, etc.)
+                }
+                fullStreamInfo = { type: 'vod', name: decodedStreamName, source: streamUrl, streamId: streamId, containerExtension: containerExtension, isHls: isHlsStream, originalData: streamData };
                 break;
             case 'series':
-                // This case handles clicking a series from a list of series.
-                // The streamId is the series_id.
-                // A player wouldn't play a "series" directly. It would navigate to show episodes.
-                // For now, we can re-trigger handleCategoryClick to show the series details if not already showing them.
-                // Or, if originalChannelsForCategory IS the series detail, then this click is on an episode (not current logic)
-                console.log(`Series selected: ${decodedStreamName} (ID: ${streamId}). To play, select an episode (not implemented).`);
-                // If we want to show the series info card when a series item from a list is clicked:
-                // This assumes `handleCategoryClick` with type 'series' and the series_id will fetch and render the info card.
-                // This might be redundant if the series info card is already displayed.
-                // For this step, we'll just log and provide feedback.
-                // If the current view IS ALREADY a series info card (meaning window.currentCategoryType === 'series' 
-                // and window.originalChannelsForCategory is the series object), then this click is on an episode or season,
-                // which is not handled by this card type.
-                if(window.currentCategoryType === 'series' && typeof window.originalChannelsForCategory === 'object' && window.originalChannelsForCategory.info && window.originalChannelsForCategory.info.series_id == streamId) {
-                     displayMessage(`Series Detail View for ${decodedStreamName}. Episode player not implemented.`, 'success');
-                } else {
-                    // This means we clicked a series from a list. We could call handleCategoryClick again for this series_id
-                    // handleCategoryClick(streamId, 'series', decodedStreamName);
-                    // For now, just indicate selection.
-                     displayMessage(`Series selected: ${decodedStreamName}. Episode selection and player not yet implemented.`, 'success');
-                }
-                // No direct streamUrl for a series entry itself.
-                fullStreamInfo = {
-                    type: 'series', name: decodedStreamName, streamId: streamId, originalData: streamData
-                };
-                console.log('Player Data (Series):', fullStreamInfo);
-                // Visual feedback for series card selection
-                const allSeriesCards = document.querySelectorAll('.channel-card');
-                allSeriesCards.forEach(card => card.classList.remove('active-stream'));
-                const clickedSeriesCard = document.querySelector(`.channel-card[data-stream-id='${streamId}'][data-stream-type='series']`);
-                if (clickedSeriesCard) {
-                    clickedSeriesCard.classList.add('active-stream');
-                }
-                return; // Return because no direct stream URL to play
+                console.log(`Series selected: ${decodedStreamName} (ID: ${streamId}). Episode player not implemented.`);
+                displayMessage(`Series selected: ${decodedStreamName}. To play, select an episode (not yet implemented).`, 'success');
+                if (playerModal) playerModal.style.display = 'none'; 
+                return; 
             default:
                 console.error('Unknown stream type:', streamData.streamType);
                 displayMessage('Cannot play stream: Unknown stream type.', 'error');
@@ -499,18 +484,118 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     
         console.log('Player Data:', fullStreamInfo);
-        displayMessage(`Selected: ${decodedStreamName}. Stream URL (for player): ${streamUrl}`, 'success');
     
-        // Visual feedback: Highlight selected card
+        if (playerModal) playerModal.style.display = 'flex';
+        if (playerStreamInfo) playerStreamInfo.textContent = decodedStreamName;
+    
+        if (hls) { 
+            hls.destroy();
+            hls = null;
+        }
+        videoPlayer.removeAttribute('src'); 
+        videoPlayer.load(); 
+    
+        if (isHlsStream) {
+            if (Hls.isSupported()) {
+                console.log("HLS.js is supported. Initializing HLS.js player for HLS stream:", streamUrl);
+                hls = new Hls({ /* debug: true */ });
+                hls.loadSource(streamUrl);
+                hls.attachMedia(videoPlayer);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    console.log("Manifest parsed. Attempting to play HLS stream...");
+                    videoPlayer.play().catch(error => {
+                        console.error("Error trying to play video with HLS.js:", error);
+                        displayMessage(`Error playing ${decodedStreamName}: ${error.message}`, 'error');
+                    });
+                });
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    console.error('HLS.js Error:', data);
+                    if (data.fatal) {
+                        switch(data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                displayMessage(`Network error playing ${decodedStreamName}. Check connection or stream.`, 'error');
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                 displayMessage(`Media error playing ${decodedStreamName}. Stream may be corrupt or incompatible.`, 'error');
+                                break;
+                            default:
+                                displayMessage(`Error playing ${decodedStreamName}: ${data.details || 'Unknown HLS error'}`, 'error');
+                                if(hls) hls.destroy(); hls = null; 
+                                break;
+                        }
+                    } else if (data.details === 'bufferStalledError') {
+                        displayMessage(`Buffering: ${decodedStreamName}...`, 'success');
+                    } else if (data.response && (data.response.code === 403 || data.response.code === 401)) {
+                        displayMessage(`Access denied for ${decodedStreamName}. Check credentials or stream permissions.`, 'error');
+                    }
+                });
+            } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) { 
+                console.log("Native HLS playback is supported. Using native player for HLS stream:", streamUrl);
+                videoPlayer.src = streamUrl;
+                const playPromise = videoPlayer.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.error("Error trying to play HLS video natively:", error);
+                        displayMessage(`Error playing ${decodedStreamName}: ${error.message}`, 'error');
+                    });
+                }
+                videoPlayer.addEventListener('error', function(e) {
+                    console.error('Native HLS player error:', e);
+                    displayMessage(`Error playing ${decodedStreamName}: Native player error.`, 'error');
+                }, { once: true });
+            } else {
+                console.error("HLS is not supported for this HLS stream.");
+                displayMessage("Your browser does not support HLS video playback.", "error");
+                if (playerModal) playerModal.style.display = 'none';
+            }
+        } else { // Progressive download (e.g., MP4, MKV VOD)
+            console.log("Progressive download stream. Setting video src directly:", streamUrl);
+            const videoFormat = `video/${fullStreamInfo.containerExtension || 'mp4'}`;
+            if (videoPlayer.canPlayType(videoFormat)) {
+                videoPlayer.src = streamUrl;
+                const playPromise = videoPlayer.play(); // Try to play immediately
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.error("Error trying to play progressive download video:", error);
+                        displayMessage(`Error playing ${decodedStreamName}: ${error.message}`, 'error');
+                    });
+                }
+                videoPlayer.addEventListener('error', function(e) {
+                    console.error('Native player error for progressive download:', e);
+                    displayMessage(`Error playing ${decodedStreamName}: Player error.`, 'error');
+                }, { once: true });
+            } else {
+                console.error(`Browser cannot play video format: ${fullStreamInfo.containerExtension}`);
+                displayMessage(`Your browser does not support the .${fullStreamInfo.containerExtension} video format.`, "error");
+                if (playerModal) playerModal.style.display = 'none';
+            }
+        }
+        
         const allCards = document.querySelectorAll('.channel-card');
         allCards.forEach(card => card.classList.remove('active-stream'));
-        
         const clickedCard = document.querySelector(`.channel-card[data-stream-id='${streamId}'][data-stream-type='${streamData.streamType}']`);
         if (clickedCard) {
             clickedCard.classList.add('active-stream');
         }
     }
     
+    function closePlayer() {
+        if (playerModal) playerModal.style.display = 'none';
+        if (videoPlayer) {
+            videoPlayer.pause();
+            videoPlayer.removeAttribute('src'); // Use removeAttribute for cleaner state
+            videoPlayer.load(); // Request to load empty source, helps stop download & clear state
+        }
+        if (hls) {
+            hls.destroy();
+            hls = null;
+        }
+        if (playerStreamInfo) playerStreamInfo.textContent = '';
+        
+        const allCards = document.querySelectorAll('.channel-card.active-stream');
+        allCards.forEach(card => card.classList.remove('active-stream'));
+        clearMessages(); 
+    }
 
     function handleSearch() {
         const searchBox = document.getElementById('search-box');
@@ -555,6 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const logoutButton = document.getElementById('logout-button');
     if (logoutButton) {
         logoutButton.addEventListener('click', () => {
+            closePlayer(); 
             localStorage.clear();
             window.currentUserInfo = null; 
             window.currentServerUrl = null;

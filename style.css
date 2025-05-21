@@ -90,7 +90,7 @@ button[type="submit"],
     font-size: 18px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.3s ease, box-shadow 0.3s ease, outline-offset 0.3s ease; /* Added outline-offset transition */
+    transition: background 0.3s ease, box-shadow 0.3s ease, outline-offset 0.3s ease; 
 }
 
 button[type="submit"] { 
@@ -163,25 +163,23 @@ button[type="submit"]:hover {
     color: #e0e0e0;
     margin-right: 15px;
     font-size: 14px;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Added transition */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease; 
 }
 
 .header-controls input[type="search"]::placeholder {
     color: #707090;
 }
 
-/* Search Box Focus */
 .header-controls input[type="search"]:focus {
     outline: none;
-    border-color: #8a63d2; /* Brighter violet on focus */
-    box-shadow: 0 0 10px rgba(138, 99, 210, 0.5); /* Glowing effect */
+    border-color: #8a63d2; 
+    box-shadow: 0 0 10px rgba(138, 99, 210, 0.5); 
 }
 
 .header-controls button { 
     padding: 8px 15px; 
     font-size: 14px; 
     background-color: #8a63d2;
-    /* transition already added to shared button style */
 }
 
 .header-controls button:hover {
@@ -189,8 +187,7 @@ button[type="submit"]:hover {
     box-shadow: 0 0 10px rgba(138, 99, 210, 0.5);
 }
 
-/* Logout Button Focus */
-.header-controls button:focus-visible { /* Using focus-visible for better accessibility */
+.header-controls button:focus-visible { 
     outline: 2px solid #8a63d2;
     outline-offset: 2px;
     box-shadow: 0 0 10px rgba(138, 99, 210, 0.5);
@@ -232,7 +229,7 @@ button[type="submit"]:hover {
     border-radius: 5px;
     color: #e0e0e0;
     cursor: pointer;
-    transition: background-color 0.2s ease, border-left 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; /* Added box-shadow transition */
+    transition: background-color 0.2s ease, border-left 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; 
     border-left: 3px solid transparent;
     font-size: 14px; 
 }
@@ -250,17 +247,16 @@ button[type="submit"]:hover {
     font-weight: 600;
 }
 
-/* Category Item (li) Focus */
 #categories-container li:focus-visible {
-    outline: none; /* Remove default outline */
-    background-color: #3a3a52; /* Consistent with hover */
-    border-left: 3px solid #ffc107; /* Use a distinct focus color, like active stream border */
-    box-shadow: inset 0 0 8px rgba(255, 193, 7, 0.3); /* Inner glow */
-    color: #ffc107; /* Match text color to border for focus */
+    outline: none; 
+    background-color: #3a3a52; 
+    border-left: 3px solid #ffc107; 
+    box-shadow: inset 0 0 8px rgba(255, 193, 7, 0.3); 
+    color: #ffc107; 
 }
 #categories-container li.active:focus-visible {
-    border-left-color: #ffc107; /* Ensure active state focus is also clear */
-    background-color: #5a5a8a; /* Slightly lighter active focus background */
+    border-left-color: #ffc107; 
+    background-color: #5a5a8a; 
     box-shadow: inset 0 0 8px rgba(255, 193, 7, 0.4);
 }
 
@@ -279,7 +275,6 @@ button[type="submit"]:hover {
     font-size: 20px;
 }
 
-/* Placeholder text styling */
 #categories-container p,
 #channels-container p {
     color: #707090;
@@ -316,17 +311,15 @@ button[type="submit"]:hover {
     transform: translateY(-2px) scale(1.02); 
 }
 
-/* Channel Card Focus */
 .channel-card:focus-visible {
-    outline: none; /* Remove default outline */
-    border-color: #ffc107; /* Match active-stream border for consistency */
-    box-shadow: 0 0 15px rgba(255, 193, 7, 0.6); /* Match active-stream shadow */
-    transform: translateY(-2px) scale(1.02); /* Similar to hover/active to indicate focus */
+    outline: none; 
+    border-color: #ffc107; 
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.6); 
+    transform: translateY(-2px) scale(1.02); 
 }
 .channel-card.active-stream:focus-visible {
-     /* Ensure active stream maintains its distinct focused appearance, if needed, or combine styles */
-    border-color: #ffc107; /* Keep gold border */
-    box-shadow: 0 0 18px rgba(255, 193, 7, 0.8); /* Slightly more intense shadow for focused active stream */
+    border-color: #ffc107; 
+    box-shadow: 0 0 18px rgba(255, 193, 7, 0.8); 
 }
 
 
@@ -359,7 +352,6 @@ button[type="submit"]:hover {
     margin-bottom: 5px;
 }
 
-/* Specific styling for Series Info Card */
 .series-info-card {
     grid-column: 1 / -1; 
     background-color: #202030; 
@@ -368,10 +360,10 @@ button[type="submit"]:hover {
     border-width: 2px; 
     cursor: default; 
 }
-.series-info-card:hover, .series-info-card:focus-visible { /* Disable hover/focus effects for info card */
+.series-info-card:hover, .series-info-card:focus-visible { 
     transform: none;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    border-color: #383854; /* Keep original border color */
+    border-color: #383854; 
 }
 
 
@@ -416,7 +408,7 @@ button[type="submit"]:hover {
 }
 .series-info-card .card-body a:hover, .series-info-card .card-body a:focus-visible {
     text-decoration: underline;
-    outline: none; /* Remove default outline if any on link focus */
+    outline: none; 
 }
 
 
@@ -445,6 +437,116 @@ button[type="submit"]:hover {
 .series-info-card .series-seasons li:last-child {
     border-bottom: none;
 }
+
+/* Player Modal Styles */
+.player-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85); 
+    display: flex; 
+    justify-content: center;
+    align-items: center;
+    z-index: 1000; 
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.player-container {
+    background-color: #1e1e32; 
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+    position: relative;
+    width: 90%;
+    max-width: 960px; 
+    border: 1px solid #4f4f7a; 
+}
+
+/* General video element styling */
+#video-player {
+    width: 100%;
+    height: auto; 
+    max-height: calc(100vh - 120px); 
+    display: block;
+    background-color: #000; 
+    border-radius: 8px; 
+    outline: none; /* Remove focus outline from video element itself */
+}
+#video-player:focus {
+    outline: none; /* Ensure no outline on focus */
+}
+
+
+.close-player-btn {
+    position: absolute;
+    top: -15px; 
+    right: -15px;
+    background-color: #8a63d2; 
+    color: white;
+    border: 2px solid #1e1e32; 
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    font-size: 24px;
+    line-height: 32px; 
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    z-index: 1001; 
+}
+
+.close-player-btn:hover {
+    background-color: #6e48b3; 
+    transform: scale(1.1);
+}
+.close-player-btn:focus-visible {
+    outline: 2px solid #ffc107;
+    outline-offset: 2px;
+}
+
+
+.player-stream-name {
+    color: #cbb6f2; 
+    font-size: 16px;
+    text-align: center;
+    padding: 10px 0 0 0; 
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Styling default video controls is limited and browser-specific.
+   These aim to make the controls panel background blend better with the dark theme. */
+
+/* For WebKit-based browsers (Chrome, Safari, Edge Chromium) */
+#video-player::-webkit-media-controls-panel {
+    background-color: rgba(25, 25, 40, 0.85) !important; /* Darker, slightly transparent */
+    color: #e0e0e0 !important; /* Try to make text/icons lighter */
+}
+
+#video-player::-webkit-media-controls-play-button,
+#video-player::-webkit-media-controls-volume-slider,
+#video-player::-webkit-media-controls-mute-button,
+#video-player::-webkit-media-controls-timeline,
+#video-player::-webkit-media-controls-current-time-display,
+#video-player::-webkit-media-controls-time-remaining-display,
+#video-player::-webkit-media-controls-fullscreen-button {
+    /* Individual button styling is very hard. Color might sometimes work for icons. */
+    /* color: #cbb6f2 !important; */ /* Example: Trying to color icons - often doesn't work as expected */
+}
+
+/* For Firefox (uses -moz-media-controls-panel, but direct styling is even more restricted) */
+/* Firefox generally does a decent job of matching its controls to dark themes if the OS/browser theme is dark. */
+/* Direct styling of Firefox controls via CSS is very limited. */
+/* No widely effective CSS for full custom styling of default Firefox controls. */
+
+
+/* For Edge (Legacy - not Chromium based - less relevant now) */
+/* No specific widely supported selectors for deep styling. */
 
 
 /* Responsive adjustments */
@@ -501,6 +603,23 @@ button[type="submit"]:hover {
     .series-info-card .card-body {
         padding: 15px; 
     }
+
+    .player-container { 
+        width: 95%;
+        padding: 15px;
+    }
+    .close-player-btn {
+        top: -10px;
+        right: -10px;
+        width: 30px;
+        height: 30px;
+        font-size: 20px;
+        line-height: 28px;
+    }
+    .player-stream-name {
+        font-size: 14px;
+    }
+
 }
 
 @media (max-width: 480px) {
