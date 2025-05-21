@@ -7,32 +7,43 @@ body {
     align-items: center;
     min-height: 100vh;
     margin: 0;
-    padding: 20px;
+    padding: 0; 
+    box-sizing: border-box;
+}
+
+/* Login Section Specific Styling */
+#login-section {
+    display: flex; 
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    min-height: 100vh; 
+    padding: 20px; 
     box-sizing: border-box;
 }
 
 .login-container {
-    background-color: #2a2a3e; /* Slightly lighter card background */
+    background-color: #2a2a3e; 
     padding: 30px 40px;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     width: 100%;
     max-width: 450px;
     text-align: center;
-    border: 1px solid #4f4f7a; /* Neon violet subtle border */
+    border: 1px solid #4f4f7a; 
 }
 
 .login-container h1 {
     font-family: 'Poppins', sans-serif;
     font-weight: 600;
     font-size: 28px;
-    color: #cbb6f2; /* Lighter violet for headings */
+    color: #cbb6f2; 
     margin-bottom: 10px;
 }
 
 .login-container p {
     font-size: 16px;
-    color: #a0a0c0; /* Muted violet/grey for subtext */
+    color: #a0a0c0; 
     margin-bottom: 30px;
 }
 
@@ -44,7 +55,7 @@ body {
 .input-group label {
     display: block;
     font-size: 14px;
-    color: #cbb6f2; /* Lighter violet for labels */
+    color: #cbb6f2; 
     margin-bottom: 8px;
 }
 
@@ -52,8 +63,8 @@ body {
     width: 100%;
     padding: 12px 15px;
     border-radius: 8px;
-    border: 1px solid #4f4f7a; /* Neon violet border */
-    background-color: #1e1e32; /* Darker input background */
+    border: 1px solid #4f4f7a; 
+    background-color: #1e1e32; 
     color: #e0e0e0;
     font-size: 16px;
     box-sizing: border-box;
@@ -61,32 +72,36 @@ body {
 }
 
 .input-group input::placeholder {
-    color: #707090; /* Muted placeholder text */
+    color: #707090; 
 }
 
 .input-group input:focus {
     outline: none;
-    border-color: #8a63d2; /* Brighter violet on focus */
-    box-shadow: 0 0 10px rgba(138, 99, 210, 0.5); /* Glowing effect */
+    border-color: #8a63d2; 
+    box-shadow: 0 0 10px rgba(138, 99, 210, 0.5); 
 }
 
-button[type="submit"] {
-    width: 100%;
+button[type="submit"],
+.header-controls button { 
     padding: 12px 15px;
     border: none;
     border-radius: 8px;
-    background: linear-gradient(90deg, #8a63d2, #6e48b3); /* Neon violet gradient */
     color: #ffffff;
     font-size: 18px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.3s ease, box-shadow 0.3s ease;
-    margin-top: 10px; /* Added margin for spacing */
+    transition: background 0.3s ease, box-shadow 0.3s ease, outline-offset 0.3s ease; /* Added outline-offset transition */
+}
+
+button[type="submit"] { 
+    width: 100%;
+    background: linear-gradient(90deg, #8a63d2, #6e48b3); 
+    margin-top: 10px;
 }
 
 button[type="submit"]:hover {
     background: linear-gradient(90deg, #6e48b3, #8a63d2);
-    box-shadow: 0 0 15px rgba(138, 99, 210, 0.7); /* Enhanced glow on hover */
+    box-shadow: 0 0 15px rgba(138, 99, 210, 0.7); 
 }
 
 .message-area {
@@ -94,22 +109,400 @@ button[type="submit"]:hover {
     padding: 10px;
     border-radius: 5px;
     font-size: 14px;
-    min-height: 20px; /* Ensure it takes space even when empty */
+    min-height: 20px; 
+    text-align: center; 
 }
 
 .message-area.success {
-    background-color: rgba(40, 167, 69, 0.2); /* Greenish, transparent */
+    background-color: rgba(40, 167, 69, 0.2); 
     color: #28a745;
     border: 1px solid #28a745;
 }
 
 .message-area.error {
-    background-color: rgba(220, 53, 69, 0.2); /* Reddish, transparent */
+    background-color: rgba(220, 53, 69, 0.2); 
     color: #dc3545;
     border: 1px solid #dc3545;
 }
 
+/* Main App Section Styling */
+#main-app-section {
+    width: 100%;
+    height: 100vh; 
+    display: flex; 
+    flex-direction: column;
+    background-color: #1a1a2e; 
+}
+
+.app-header {
+    background-color: #2a2a3e;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #4f4f7a;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3); 
+}
+
+.app-header h1 {
+    color: #cbb6f2;
+    font-size: 24px;
+    margin: 0;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+}
+
+.header-controls input[type="search"] {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #4f4f7a;
+    background-color: #1e1e32;
+    color: #e0e0e0;
+    margin-right: 15px;
+    font-size: 14px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Added transition */
+}
+
+.header-controls input[type="search"]::placeholder {
+    color: #707090;
+}
+
+/* Search Box Focus */
+.header-controls input[type="search"]:focus {
+    outline: none;
+    border-color: #8a63d2; /* Brighter violet on focus */
+    box-shadow: 0 0 10px rgba(138, 99, 210, 0.5); /* Glowing effect */
+}
+
+.header-controls button { 
+    padding: 8px 15px; 
+    font-size: 14px; 
+    background-color: #8a63d2;
+    /* transition already added to shared button style */
+}
+
+.header-controls button:hover {
+    background-color: #6e48b3;
+    box-shadow: 0 0 10px rgba(138, 99, 210, 0.5);
+}
+
+/* Logout Button Focus */
+.header-controls button:focus-visible { /* Using focus-visible for better accessibility */
+    outline: 2px solid #8a63d2;
+    outline-offset: 2px;
+    box-shadow: 0 0 10px rgba(138, 99, 210, 0.5);
+}
+
+
+.app-body {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden; 
+}
+
+#categories-sidebar {
+    width: 250px;
+    min-width: 200px; 
+    background-color: #232336;
+    padding: 20px;
+    overflow-y: auto;
+    border-right: 1px solid #4f4f7a;
+}
+
+#categories-sidebar h3 { 
+    color: #cbb6f2;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 18px; 
+}
+
+#categories-container ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#categories-container li {
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    background-color: #2a2a3e;
+    border-radius: 5px;
+    color: #e0e0e0;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-left 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; /* Added box-shadow transition */
+    border-left: 3px solid transparent;
+    font-size: 14px; 
+}
+
+#categories-container li:hover {
+    background-color: #3a3a52;
+    border-left: 3px solid #8a63d2;
+    color: #cbb6f2; 
+    transform: translateX(3px);
+}
+#categories-container li.active { 
+    background-color: #4f4f7a; 
+    border-left: 3px solid #cbb6f2; 
+    color: #ffffff; 
+    font-weight: 600;
+}
+
+/* Category Item (li) Focus */
+#categories-container li:focus-visible {
+    outline: none; /* Remove default outline */
+    background-color: #3a3a52; /* Consistent with hover */
+    border-left: 3px solid #ffc107; /* Use a distinct focus color, like active stream border */
+    box-shadow: inset 0 0 8px rgba(255, 193, 7, 0.3); /* Inner glow */
+    color: #ffc107; /* Match text color to border for focus */
+}
+#categories-container li.active:focus-visible {
+    border-left-color: #ffc107; /* Ensure active state focus is also clear */
+    background-color: #5a5a8a; /* Slightly lighter active focus background */
+    box-shadow: inset 0 0 8px rgba(255, 193, 7, 0.4);
+}
+
+
+#channels-content {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background-color: #161625; 
+}
+
+#channels-content h2 { 
+    color: #cbb6f2;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 20px;
+}
+
+/* Placeholder text styling */
+#categories-container p,
+#channels-container p {
+    color: #707090;
+    font-style: italic;
+    padding: 10px;
+}
+
+.channels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+    gap: 20px; 
+    padding: 20px 0; 
+}
+
+.channel-card {
+    background-color: #2a2a3e; 
+    border-radius: 10px;
+    overflow: hidden; 
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    border: 1px solid #383854; 
+}
+
+.channel-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(138, 99, 210, 0.4); 
+    border-color: #8a63d2; 
+}
+
+.channel-card.active-stream {
+    border-color: #ffc107; 
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.6);
+    transform: translateY(-2px) scale(1.02); 
+}
+
+/* Channel Card Focus */
+.channel-card:focus-visible {
+    outline: none; /* Remove default outline */
+    border-color: #ffc107; /* Match active-stream border for consistency */
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.6); /* Match active-stream shadow */
+    transform: translateY(-2px) scale(1.02); /* Similar to hover/active to indicate focus */
+}
+.channel-card.active-stream:focus-visible {
+     /* Ensure active stream maintains its distinct focused appearance, if needed, or combine styles */
+    border-color: #ffc107; /* Keep gold border */
+    box-shadow: 0 0 18px rgba(255, 193, 7, 0.8); /* Slightly more intense shadow for focused active stream */
+}
+
+
+.channel-card img {
+    width: 100%;
+    height: 220px; 
+    object-fit: cover; 
+    display: block;
+    border-bottom: 1px solid #383854;
+    background-color: #1e1e32; 
+}
+
+.channel-card .card-body {
+    padding: 15px;
+}
+
+.channel-card .card-body h4 {
+    font-size: 16px;
+    color: #e0e0e0;
+    margin-top: 0;
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; 
+}
+
+.channel-card .card-body p {
+    font-size: 12px;
+    color: #a0a0c0;
+    margin-bottom: 5px;
+}
+
+/* Specific styling for Series Info Card */
+.series-info-card {
+    grid-column: 1 / -1; 
+    background-color: #202030; 
+    display: flex; 
+    align-items: flex-start;
+    border-width: 2px; 
+    cursor: default; 
+}
+.series-info-card:hover, .series-info-card:focus-visible { /* Disable hover/focus effects for info card */
+    transform: none;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    border-color: #383854; /* Keep original border color */
+}
+
+
+.series-info-card img {
+    width: 200px; 
+    height: auto;
+    max-height: 300px; 
+    object-fit: cover;
+    border-radius: 8px 0 0 8px; 
+    border-bottom: none; 
+    border-right: 2px solid #4f4f7a; 
+    margin-right: 20px; 
+}
+
+.series-info-card .card-body {
+    flex: 1;
+    padding: 20px;
+}
+.series-info-card .card-body h3 { 
+    font-size: 22px;
+    color: #cbb6f2; 
+    margin-bottom: 15px;
+    white-space: normal; 
+    overflow: visible;
+    text-overflow: clip;
+}
+.series-info-card .card-body p {
+    font-size: 14px;
+    margin-bottom: 10px;
+    color: #b0b0d0; 
+}
+.series-info-card .card-body p.plot {
+    font-size: 13px;
+    line-height: 1.6;
+    max-height: 78px; 
+    overflow-y: auto; 
+    margin-bottom: 15px; 
+}
+.series-info-card .card-body a {
+    color: #8a63d2;
+    text-decoration: none;
+}
+.series-info-card .card-body a:hover, .series-info-card .card-body a:focus-visible {
+    text-decoration: underline;
+    outline: none; /* Remove default outline if any on link focus */
+}
+
+
+.series-info-card .series-seasons {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #4f4f7a;
+}
+.series-info-card .series-seasons h4 {
+    color: #cbb6f2;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+.series-info-card .series-seasons ul {
+    list-style: none;
+    padding-left: 0;
+    max-height: 150px; 
+    overflow-y: auto;
+}
+.series-info-card .series-seasons li {
+    font-size: 14px;
+    padding: 6px 0; 
+    color: #a0a0c0;
+    border-bottom: 1px dashed #383854; 
+}
+.series-info-card .series-seasons li:last-child {
+    border-bottom: none;
+}
+
+
 /* Responsive adjustments */
+@media (max-width: 768px) {
+    .app-header {
+        padding: 10px 15px;
+        flex-direction: column; 
+        align-items: flex-start;
+    }
+    .app-header h1 {
+        font-size: 20px;
+        margin-bottom: 10px; 
+    }
+    .header-controls {
+        width: 100%; 
+        justify-content: space-between; 
+    }
+    .header-controls input[type="search"] {
+        flex-grow: 1; 
+        margin-right: 10px;
+    }
+
+    .app-body {
+        flex-direction: column; 
+    }
+    #categories-sidebar {
+        width: 100%; 
+        height: auto; 
+        max-height: 40vh; 
+        border-right: none; 
+        border-bottom: 1px solid #4f4f7a; 
+    }
+     #channels-content {
+        flex-grow: 1; 
+    }
+    .channels-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
+        gap: 15px;
+    }
+    .channel-card img {
+        height: 180px; 
+    }
+    .series-info-card {
+        flex-direction: column; 
+    }
+    .series-info-card img {
+        width: 100%; 
+        max-height: 250px; 
+        border-radius: 8px 8px 0 0; 
+        border-right: none;
+        margin-right: 0;
+        margin-bottom: 15px; 
+    }
+    .series-info-card .card-body {
+        padding: 15px; 
+    }
+}
+
 @media (max-width: 480px) {
     .login-container {
         padding: 20px;
@@ -124,8 +517,39 @@ button[type="submit"]:hover {
         padding: 10px 12px;
         font-size: 14px;
     }
-    button[type="submit"] {
+    button[type="submit"],
+    .header-controls button {
         padding: 10px 12px;
         font-size: 16px;
+    }
+    .app-header h1 {
+        font-size: 18px;
+    }
+    #categories-sidebar h3, 
+    #channels-content h2 {
+        font-size: 18px;
+    }
+    #categories-container li {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+    .channels-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); 
+        gap: 10px;
+    }
+    .channel-card img {
+        height: 150px; 
+    }
+    .channel-card .card-body h4 {
+        font-size: 14px;
+    }
+    .series-info-card .card-body h3 {
+        font-size: 20px;
+    }
+    .series-info-card .card-body p {
+        font-size: 13px;
+    }
+    .series-info-card .card-body p.plot {
+        max-height: 60px; 
     }
 }

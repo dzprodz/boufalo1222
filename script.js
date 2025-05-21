@@ -1,3 +1,11 @@
+// Global variables for session
+window.currentUserInfo = null;
+window.currentServerUrl = null;
+// Global variables for search
+window.originalChannelsForCategory = null; // Stores the full list for the active category
+window.currentCategoryType = null; // Stores the type of the active category
+
+
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
     const serverUrlInput = document.getElementById('server-url');
@@ -5,8 +13,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const passwordInput = document.getElementById('password');
     const messageArea = document.getElementById('message-area');
     const loginButton = document.getElementById('login-button');
+    const loginSection = document.getElementById('login-section');
+    const mainAppSection = document.getElementById('main-app-section');
+    const searchBox = document.getElementById('search-box');
 
-    checkForExistingSession(); // Call on page load
+    if (searchBox) {
+        searchBox.addEventListener('input', handleSearch);
+    }
+
+    checkForExistingSession();
 
     loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -21,12 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        let parsedUrl;
         try {
-            parsedUrl = new URL(serverUrl);
-            if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-                throw new Error('Invalid protocol.');
-            }
+            new URL(serverUrl);
         } catch (error) {
             displayMessage('Invalid Server URL. Ensure it starts with http:// or https:// and is a valid address.', 'error');
             return;
@@ -50,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (errorData && errorData.message) {
                         errorMsg = errorData.message;
                     }
-                } catch (e) { /* Ignore if error response is not JSON */ }
+                } catch (e) { /* Ignore */ }
                 throw new Error(errorMsg);
             }
 
@@ -58,12 +69,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.user_info && data.user_info.auth === 1) {
                 displayMessage('Login successful!', 'success');
-                saveSession(data.user_info, data.server_info, serverUrl); // Save session here
+                saveSession(data.user_info, data.server_info, serverUrl);
                 
-                console.log('User Info:', data.user_info);
+                window.currentUserInfo = data.user_info;
+                window.currentServerUrl = serverUrl;
+
+                console.log('User Info:', window.currentUserInfo);
                 console.log('Server Info:', data.server_info);
-                // In a real app, you would redirect or update UI here
-                // window.location.href = '/dashboard.html';
+
+                if (loginSection) loginSection.style.display = 'none';
+                if (mainAppSection) mainAppSection.style.display = 'flex';
+                fetchCategories(window.currentUserInfo, window.currentServerUrl);
             } else if (data.user_info && data.user_info.auth === 0) {
                 displayMessage(data.user_info.message || 'Authentication failed. Please check your credentials.', 'error');
             } else {
@@ -101,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             localStorage.setItem('xtream_user_info', JSON.stringify(userInfo));
             localStorage.setItem('xtream_server_info', JSON.stringify(serverInfo));
-            localStorage.setItem('xtream_last_login_url', loggedInServerUrl); // Save server URL used for login
+            localStorage.setItem('xtream_last_login_url', loggedInServerUrl);
             console.log('Session saved to localStorage.');
         } catch (e) {
             console.error('Error saving session to localStorage:', e);
@@ -115,28 +131,448 @@ document.addEventListener('DOMContentLoaded', () => {
             const serverInfoString = localStorage.getItem('xtream_server_info');
             const lastLoginUrl = localStorage.getItem('xtream_last_login_url');
 
-            if (userInfoString && serverInfoString) {
-                const userInfo = JSON.parse(userInfoString);
-                // const serverInfo = JSON.parse(serverInfoString); // Not used directly in this example, but good to parse/validate
+            if (userInfoString && serverInfoString && lastLoginUrl) {
+                const storedUserInfo = JSON.parse(userInfoString);
+                window.currentUserInfo = storedUserInfo;
+                window.currentServerUrl = lastLoginUrl;
 
-                console.log('Existing session found for user:', userInfo.username);
-                displayMessage(`Welcome back, ${userInfo.username}! Session detected.`, 'success');
+                console.log('Existing session found for user:', window.currentUserInfo.username);
+                if (loginSection) loginSection.style.display = 'none';
+                if (mainAppSection) mainAppSection.style.display = 'flex';
                 
-                if (lastLoginUrl) {
-                    serverUrlInput.value = lastLoginUrl; // Pre-fill server URL
-                }
-                
-                // For a full auto-login, you might want to:
-                // 1. Pre-fill username (if not sensitive or if user opts-in)
-                // 2. Automatically submit the form or directly navigate to a dashboard if the session is considered "active"
-                //    (e.g. by checking user_info.status == "Active" and perhaps a session expiry timestamp)
-                // For now, pre-filling the URL and showing a message is sufficient for this step.
+                serverUrlInput.value = window.currentServerUrl;
+                displayMessage(`Welcome back, ${window.currentUserInfo.username}! Restoring session...`, 'success');
+                fetchCategories(window.currentUserInfo, window.currentServerUrl);
             } else {
-                console.log('No existing session found.');
+                console.log('No existing session found or session incomplete.');
+                if (mainAppSection) mainAppSection.style.display = 'none';
+                if (loginSection) loginSection.style.display = 'block';
             }
         } catch (e) {
             console.error('Error checking for existing session in localStorage:', e);
-            // Don't show a user-facing error here, as it's a background check
+            localStorage.clear();
+            window.currentUserInfo = null; 
+            window.currentServerUrl = null;
+            window.originalChannelsForCategory = null;
+            window.currentCategoryType = null;
+            if (mainAppSection) mainAppSection.style.display = 'none';
+            if (loginSection) loginSection.style.display = 'block';
         }
+    }
+
+    async function fetchCategories(userInfo, serverUrl) {
+        const { username, password } = userInfo;
+        if (!password) {
+            displayMessage('Password not found in session. Cannot fetch categories. Please log in again.', 'error');
+            localStorage.clear();
+            window.currentUserInfo = null; window.currentServerUrl = null;
+            window.originalChannelsForCategory = null; window.currentCategoryType = null;
+            if (loginSection) loginSection.style.display = 'block';
+            if (mainAppSection) mainAppSection.style.display = 'none';
+            return;
+        }
+
+        const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+        const actions = { live: 'get_live_categories', vod: 'get_vod_categories', series: 'get_series_categories' };
+        const categories = {};
+        messageArea.className = 'message-area';
+        displayMessage('Fetching categories...', 'success');
+
+        for (const type of Object.keys(actions)) {
+            const apiUrl = `${baseUrl}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=${actions[type]}`;
+            try {
+                const response = await fetch(apiUrl, { method: 'GET', headers: { 'Accept': 'application/json' }});
+                if (!response.ok) {
+                    let errorDetail = `HTTP error ${response.status}`;
+                    try { const errorJson = await response.json(); if(errorJson && errorJson.message) errorDetail = errorJson.message; } catch(jsonError) { /* ignore */ }
+                    throw new Error(errorDetail + ` while fetching ${type} categories`);
+                }
+                const data = await response.json();
+                if (data && Array.isArray(data)) {
+                    categories[type] = data;
+                } else if ((type === 'series' || type === 'vod') && (data === null || (typeof data === 'object' && Object.keys(data).length === 0))) {
+                    categories[type] = [];
+                } else {
+                    console.warn(`Unexpected data format for ${type} categories:`, data);
+                    categories[type] = [];
+                }
+            } catch (error) {
+                console.error(`Failed to fetch ${type} categories:`, error);
+                const currentMsg = messageArea.textContent.startsWith("Fetching categories...") ? "" : messageArea.textContent;
+                const errorSeparator = currentMsg && !currentMsg.includes("Error fetching") ? " | " : "";
+                displayMessage((currentMsg.includes("Error fetching") ? currentMsg : "Error fetching categories. ") + errorSeparator + `${type} failed. `, 'error');
+                categories[type] = [];
+            }
+        }
+        
+        window.xtreamCategories = categories;
+        if (!messageArea.textContent.includes("Error fetching")) {
+             displayMessage('Categories fetched. Select a category to browse.', 'success');
+        }
+        renderCategories(window.xtreamCategories);
+    }
+
+    function renderCategories(categories) {
+        const categoriesContainer = document.getElementById('categories-container');
+        if (!categoriesContainer) {
+            console.error('Categories container not found');
+            return;
+        }
+        categoriesContainer.innerHTML = ''; 
+
+        let html = '';
+        let hasContent = false;
+
+        if (categories.live && categories.live.length > 0) {
+            hasContent = true;
+            html += '<h3>Live TV</h3><ul>';
+            categories.live.forEach(cat => {
+                html += `<li data-category-id="${cat.category_id}" data-category-type="live" data-category-name="${encodeURIComponent(cat.category_name)}">${cat.category_name}</li>`;
+            });
+            html += '</ul>';
+        }
+        if (categories.vod && categories.vod.length > 0) {
+            hasContent = true;
+            html += '<h3>VOD</h3><ul>';
+            categories.vod.forEach(cat => {
+                html += `<li data-category-id="${cat.category_id}" data-category-type="vod" data-category-name="${encodeURIComponent(cat.category_name)}">${cat.category_name}</li>`;
+            });
+            html += '</ul>';
+        }
+        if (categories.series && categories.series.length > 0) {
+            hasContent = true;
+            html += '<h3>Series</h3><ul>';
+            categories.series.forEach(cat => {
+                html += `<li data-category-id="${cat.category_id}" data-category-type="series" data-category-name="${encodeURIComponent(cat.category_name)}">${cat.category_name}</li>`;
+            });
+            html += '</ul>';
+        }
+
+        if (!hasContent) {
+            html = '<p>No categories found or all categories failed to load.</p>';
+        }
+        categoriesContainer.innerHTML = html;
+
+        const categoryItems = categoriesContainer.querySelectorAll('li');
+        categoryItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const categoryId = item.dataset.categoryId;
+                const categoryType = item.dataset.categoryType;
+                const categoryName = decodeURIComponent(item.dataset.categoryName);
+                
+                const searchBox = document.getElementById('search-box');
+                if (searchBox) searchBox.value = ''; 
+                
+                handleCategoryClick(categoryId, categoryType, categoryName);
+            });
+        });
+    }
+
+    async function handleCategoryClick(categoryId, categoryType, categoryName) {
+        const channelsContainer = document.getElementById('channels-container');
+        channelsContainer.innerHTML = `<p>Loading content for "${categoryName}"...</p>`;
+        displayMessage(`Fetching ${categoryType} for "${categoryName}"...`, 'success');
+
+        const categoryItems = document.querySelectorAll('#categories-container li');
+        categoryItems.forEach(item => item.classList.remove('active'));
+        const activeCategoryElement = document.querySelector(`#categories-container li[data-category-id="${categoryId}"][data-category-type="${categoryType}"]`);
+        if (activeCategoryElement) {
+            activeCategoryElement.classList.add('active');
+        }
+
+        const userInfo = window.currentUserInfo || JSON.parse(localStorage.getItem('xtream_user_info'));
+        const serverUrl = window.currentServerUrl || localStorage.getItem('xtream_last_login_url');
+
+        if (!userInfo || !serverUrl || !userInfo.username || !userInfo.password) {
+            displayMessage('User session not found or incomplete. Please login again.', 'error');
+            console.error('User session not found or incomplete for fetching channels.');
+            channelsContainer.innerHTML = `<p>Error: User session not found or incomplete. Please login again.</p>`;
+            window.originalChannelsForCategory = null; 
+            window.currentCategoryType = null;
+            return;
+        }
+
+        const { username, password } = userInfo;
+        const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+        let action = '';
+        let params = `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+
+        switch (categoryType) {
+            case 'live': action = 'get_live_streams'; params += `&category_id=${categoryId}`; break;
+            case 'vod': action = 'get_vod_streams'; params += `&category_id=${categoryId}`; break;
+            case 'series': action = 'get_series_info'; params += `&series_id=${categoryId}`; break;
+            default:
+                console.error('Unknown category type:', categoryType);
+                channelsContainer.innerHTML = `<p>Error: Unknown category type.</p>`;
+                displayMessage('Unknown category type.', 'error');
+                window.originalChannelsForCategory = null; 
+                window.currentCategoryType = null;
+                return;
+        }
+
+        const apiUrl = `${baseUrl}/player_api.php?${params}&action=${action}`;
+
+        try {
+            const response = await fetch(apiUrl, { method: 'GET', headers: { 'Accept': 'application/json' }});
+            if (!response.ok) {
+                 let errorDetail = `HTTP error ${response.status}`;
+                 try { 
+                     const errorJson = await response.json(); 
+                     if(errorJson && (errorJson.message || (errorJson.user_info && errorJson.user_info.message))) 
+                        errorDetail = errorJson.message || errorJson.user_info.message;
+                 } catch(jsonError) { /* ignore */ }
+                throw new Error(`${errorDetail} while fetching content for ${categoryName}`);
+            }
+            const data = await response.json();
+            
+            console.log(`Data for ${categoryType} - ${categoryName} (ID: ${categoryId}):`, data);
+            
+            window.originalChannelsForCategory = data; 
+            window.currentCategoryType = categoryType;  
+            const searchBox = document.getElementById('search-box');
+            if (searchBox) searchBox.value = ''; 
+
+            renderChannels(data, categoryType); 
+
+        } catch (error) {
+            console.error(`Failed to fetch content for ${categoryName}:`, error);
+            channelsContainer.innerHTML = `<p>Error loading content for "${categoryName}". Please try again.</p>`;
+            displayMessage(`Error fetching content for "${categoryName}": ${error.message}`, 'error');
+            window.originalChannelsForCategory = null; 
+            window.currentCategoryType = null;
+        }
+    }
+
+    function renderChannels(items, categoryType) {
+        const channelsContainer = document.getElementById('channels-container');
+        channelsContainer.innerHTML = ''; 
+
+        if (!items || (Array.isArray(items) && items.length === 0)) {
+            if (categoryType === 'series' && items && typeof items === 'object' && items.info) {
+                // Valid single series info object
+            } else {
+                channelsContainer.innerHTML = '<p>No channels or items found.</p>'; 
+                return;
+            }
+        }
+
+        const grid = document.createElement('div');
+        grid.className = 'channels-grid';
+
+        if (categoryType === 'series' && typeof items === 'object' && !Array.isArray(items) && items.info) {
+            const seriesInfo = items; 
+            const card = document.createElement('div');
+            card.className = 'channel-card series-info-card'; 
+            let coverImg = seriesInfo.info.cover_big || seriesInfo.info.movie_image || './placeholder.png';
+            card.innerHTML = `
+                <img src="${coverImg}" alt="${seriesInfo.info.name || 'Series Cover'}" onerror="this.onerror=null;this.src='./placeholder.png';">
+                <div class="card-body">
+                    <h3>${seriesInfo.info.name || 'N/A'}</h3>
+                    <p><strong>Released:</strong> ${seriesInfo.info.releasedate || 'N/A'}</p>
+                    <p><strong>Director:</strong> ${seriesInfo.info.director || 'N/A'}</p>
+                    <p><strong>Cast:</strong> ${seriesInfo.info.cast || 'N/A'}</p>
+                    <p class="plot"><strong>Plot:</strong> ${seriesInfo.info.plot || 'N/A'}</p>
+                    ${seriesInfo.info.youtube_trailer ? `<p><a href="https://www.youtube.com/watch?v=${seriesInfo.info.youtube_trailer}" target="_blank">Watch Trailer</a></p>` : ''}
+                </div>
+            `;
+            if (seriesInfo.episodes) {
+                let seasonsHtml = '<div class="series-seasons"><h4>Seasons:</h4><ul>';
+                for (const seasonNum in seriesInfo.episodes) {
+                    seasonsHtml += `<li>Season ${seasonNum} (${seriesInfo.episodes[seasonNum].length} episodes)</li>`;
+                }
+                seasonsHtml += '</ul></div>';
+                const cardBody = card.querySelector('.card-body');
+                if (cardBody) cardBody.innerHTML += seasonsHtml; else card.innerHTML += seasonsHtml;
+            }
+            grid.appendChild(card);
+        } else if (Array.isArray(items)) { 
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'channel-card';
+                card.dataset.streamId = categoryType === 'series' ? item.series_id : (item.stream_id || item.id);
+                card.dataset.streamType = categoryType;
+                card.dataset.streamName = encodeURIComponent(item.name || item.title || 'Unknown Stream');
+                let name = item.name || item.title || 'Unnamed Stream';
+                let iconUrl = item.stream_icon || item.icon || item.icon_url || item.movie_image || item.cover || item.logo || './placeholder.png';
+                card.innerHTML = `
+                    <img src="${iconUrl}" alt="${name}" onerror="this.onerror=null;this.src='./placeholder.png';">
+                    <div class="card-body">
+                        <h4>${name}</h4>
+                        ${categoryType === 'vod' && item.rating_5based ? `<p>Rating: ${Number(item.rating_5based).toFixed(1)}/5</p>` : ''}
+                        ${categoryType === 'vod' && item.duration ? `<p>Duration: ${item.duration}</p>` : ''}
+                    </div>
+                `;
+                card.addEventListener('click', () => handleStreamClick(card.dataset));
+                grid.appendChild(card);
+            });
+        }
+
+        channelsContainer.appendChild(grid);
+        if (grid.childNodes.length === 0 && !(categoryType === 'series' && typeof items === 'object' && items.info)) {
+            channelsContainer.innerHTML = '<p>No channels or items found.</p>';
+        }
+    }
+
+    function handleStreamClick(streamData) {
+        const decodedStreamName = decodeURIComponent(streamData.streamName);
+        console.log('Stream clicked (raw data):', streamData); // Log raw data attributes
+    
+        // Retrieve server and user credentials
+        const userInfo = window.currentUserInfo || JSON.parse(localStorage.getItem('xtream_user_info'));
+        let serverUrl = window.currentServerUrl || localStorage.getItem('xtream_last_login_url');
+    
+        if (!userInfo || !serverUrl || !userInfo.username || !userInfo.password) {
+            displayMessage('Cannot play stream: User session or server info is missing. Please log in again.', 'error');
+            console.error('User session or server info missing for stream URL construction.');
+            return;
+        }
+        
+        serverUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+        const username = userInfo.username;
+        const password = userInfo.password;
+        const streamId = streamData.streamId;
+        let streamUrl = '';
+        let fullStreamInfo = {}; // To store all details for player
+    
+        switch (streamData.streamType) {
+            case 'live':
+                streamUrl = `${serverUrl}/live/${username}/${password}/${streamId}.ts`;
+                fullStreamInfo = {
+                    type: 'live', name: decodedStreamName, source: streamUrl, streamId: streamId,
+                    originalData: streamData // Added for completeness
+                };
+                break;
+            case 'vod':
+                let containerExtension = 'mp4'; // Default
+                if (window.originalChannelsForCategory && Array.isArray(window.originalChannelsForCategory)) {
+                    // Ensure comparison is with correct ID property (stream_id for VODs, series_id for series list)
+                    const vodItem = window.originalChannelsForCategory.find(item => String(item.stream_id) === String(streamId));
+                    if (vodItem && vodItem.container_extension) {
+                        containerExtension = vodItem.container_extension;
+                    }
+                }
+                streamUrl = `${serverUrl}/movie/${username}/${password}/${streamId}.${containerExtension}`;
+                fullStreamInfo = {
+                    type: 'vod', name: decodedStreamName, source: streamUrl, streamId: streamId, 
+                    containerExtension: containerExtension, originalData: streamData // Added for completeness
+                };
+                break;
+            case 'series':
+                // This case handles clicking a series from a list of series.
+                // The streamId is the series_id.
+                // A player wouldn't play a "series" directly. It would navigate to show episodes.
+                // For now, we can re-trigger handleCategoryClick to show the series details if not already showing them.
+                // Or, if originalChannelsForCategory IS the series detail, then this click is on an episode (not current logic)
+                console.log(`Series selected: ${decodedStreamName} (ID: ${streamId}). To play, select an episode (not implemented).`);
+                // If we want to show the series info card when a series item from a list is clicked:
+                // This assumes `handleCategoryClick` with type 'series' and the series_id will fetch and render the info card.
+                // This might be redundant if the series info card is already displayed.
+                // For this step, we'll just log and provide feedback.
+                // If the current view IS ALREADY a series info card (meaning window.currentCategoryType === 'series' 
+                // and window.originalChannelsForCategory is the series object), then this click is on an episode or season,
+                // which is not handled by this card type.
+                if(window.currentCategoryType === 'series' && typeof window.originalChannelsForCategory === 'object' && window.originalChannelsForCategory.info && window.originalChannelsForCategory.info.series_id == streamId) {
+                     displayMessage(`Series Detail View for ${decodedStreamName}. Episode player not implemented.`, 'success');
+                } else {
+                    // This means we clicked a series from a list. We could call handleCategoryClick again for this series_id
+                    // handleCategoryClick(streamId, 'series', decodedStreamName);
+                    // For now, just indicate selection.
+                     displayMessage(`Series selected: ${decodedStreamName}. Episode selection and player not yet implemented.`, 'success');
+                }
+                // No direct streamUrl for a series entry itself.
+                fullStreamInfo = {
+                    type: 'series', name: decodedStreamName, streamId: streamId, originalData: streamData
+                };
+                console.log('Player Data (Series):', fullStreamInfo);
+                // Visual feedback for series card selection
+                const allSeriesCards = document.querySelectorAll('.channel-card');
+                allSeriesCards.forEach(card => card.classList.remove('active-stream'));
+                const clickedSeriesCard = document.querySelector(`.channel-card[data-stream-id='${streamId}'][data-stream-type='series']`);
+                if (clickedSeriesCard) {
+                    clickedSeriesCard.classList.add('active-stream');
+                }
+                return; // Return because no direct stream URL to play
+            default:
+                console.error('Unknown stream type:', streamData.streamType);
+                displayMessage('Cannot play stream: Unknown stream type.', 'error');
+                return;
+        }
+    
+        console.log('Player Data:', fullStreamInfo);
+        displayMessage(`Selected: ${decodedStreamName}. Stream URL (for player): ${streamUrl}`, 'success');
+    
+        // Visual feedback: Highlight selected card
+        const allCards = document.querySelectorAll('.channel-card');
+        allCards.forEach(card => card.classList.remove('active-stream'));
+        
+        const clickedCard = document.querySelector(`.channel-card[data-stream-id='${streamId}'][data-stream-type='${streamData.streamType}']`);
+        if (clickedCard) {
+            clickedCard.classList.add('active-stream');
+        }
+    }
+    
+
+    function handleSearch() {
+        const searchBox = document.getElementById('search-box');
+        const searchTerm = searchBox.value.toLowerCase().trim();
+    
+        if (!window.originalChannelsForCategory) {
+            return; 
+        }
+        
+        if (window.currentCategoryType === 'series' && 
+            typeof window.originalChannelsForCategory === 'object' && 
+            !Array.isArray(window.originalChannelsForCategory) && 
+            window.originalChannelsForCategory.info) {
+            
+            if (searchTerm) {
+                displayMessage("Search applies to lists of channels/VODs, not the detailed series view. Clear search or select a list category.", "error");
+            } else {
+                clearMessages(); 
+            }
+            return; 
+        }
+    
+        if (!searchTerm) {
+            renderChannels(window.originalChannelsForCategory, window.currentCategoryType);
+            return;
+        }
+    
+        if (!Array.isArray(window.originalChannelsForCategory)) {
+            console.warn('Original data for category is not an array, cannot filter:', window.originalChannelsForCategory);
+            renderChannels([], window.currentCategoryType); 
+            return;
+        }
+    
+        const filteredItems = window.originalChannelsForCategory.filter(item => {
+            const itemName = (item.name || item.title || '').toLowerCase();
+            return itemName.includes(searchTerm);
+        });
+    
+        renderChannels(filteredItems, window.currentCategoryType);
+    }
+
+    const logoutButton = document.getElementById('logout-button');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', () => {
+            localStorage.clear();
+            window.currentUserInfo = null; 
+            window.currentServerUrl = null;
+            window.originalChannelsForCategory = null;
+            window.currentCategoryType = null;
+            const searchBox = document.getElementById('search-box');
+            if (searchBox) searchBox.value = '';
+
+            console.log('Session cleared. Logged out.');
+            if (mainAppSection) mainAppSection.style.display = 'none';
+            if (loginSection) loginSection.style.display = 'block';
+            serverUrlInput.value = ''; usernameInput.value = ''; passwordInput.value = '';
+            clearMessages();
+            const channelsContainer = document.getElementById('channels-container');
+            if(channelsContainer) channelsContainer.innerHTML = '<p>Select a category to see channels.</p>';
+            const categoriesContainer = document.getElementById('categories-container');
+            if(categoriesContainer) categoriesContainer.innerHTML = '<p>Loading categories...</p>';
+            displayMessage('You have been logged out.', 'success');
+        });
     }
 });
