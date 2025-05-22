@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"> <!-- Corrected from UTF-O -->
+    <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Xtream IPTV Web App</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Material Symbols Rounded -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
     <!-- HLS.js Library -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
@@ -35,15 +37,21 @@
 
     <section id="main-app-section" style="display: none;"> 
         <header class="app-header">
+            <button id="category-toggle-button" class="material-symbols-rounded mobile-only">menu</button> <!-- New Button -->
             <h1>Xtream IPTV Player</h1>
             <div class="header-controls">
-                <input type="search" id="search-box" placeholder="Search channels...">
-                <button id="logout-button">Logout</button>
+                <div class="search-wrapper"> 
+                    <span class="material-symbols-rounded search-icon">search</span>
+                    <input type="search" id="search-box" placeholder="Search channels...">
+                </div>
+                <button id="logout-button">
+                    <span class="material-symbols-rounded">logout</span> Logout
+                </button>
             </div>
         </header>
         <div class="app-body">
             <aside id="categories-sidebar">
-                <h3>Categories</h3> <!-- Changed from h2 to h3 in a previous step, ensure it's h3 or as intended -->
+                <h3>Categories</h3> 
                 <div id="categories-container">
                     <p>Loading categories...</p>
                 </div>
@@ -59,8 +67,10 @@
 
     <!-- Player Modal -->
     <div id="player-modal" class="player-modal-overlay" style="display: none;">
-        <div class="player-container"> <!-- Changed from player-content to player-container to match CSS -->
-            <button id="close-player-button" class="close-player-btn">&times;</button>
+        <div class="player-container"> 
+            <button id="close-player-button" class="close-player-btn">
+                <span class="material-symbols-rounded">close</span>
+            </button>
             <video id="video-player" controls width="100%"></video>
             <div id="player-stream-info" class="player-stream-name"></div>
         </div>

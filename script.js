@@ -12,6 +12,28 @@ let videoPlayer = null;
 let closePlayerButton = null;
 let playerStreamInfo = null;
 
+// Helper function to show loading spinner
+function showLoadingSpinner(containerElement, messageText = '') {
+    if (!containerElement) return;
+    let messageHtml = messageText ? `<p class="loading-message">${messageText}</p>` : '';
+    containerElement.innerHTML = `
+        <div class="loading-spinner-container">
+            <div class="loading-spinner"></div>
+            ${messageHtml}
+        </div>`;
+}
+
+// Helper function to show content placeholder
+function showContentPlaceholder(containerElement, iconName, message) {
+    if (!containerElement) return;
+    containerElement.innerHTML = `
+        <div class="content-placeholder">
+            <span class="material-symbols-rounded">${iconName}</span>
+            <p>${message}</p>
+        </div>`;
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
     const serverUrlInput = document.getElementById('server-url');
@@ -22,8 +44,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginSection = document.getElementById('login-section');
     const mainAppSection = document.getElementById('main-app-section');
     const searchBox = document.getElementById('search-box');
+    
+    const categoryToggleButton = document.getElementById('category-toggle-button');
+    const categoriesSidebar = document.getElementById('categories-sidebar');
 
-    // Player DOM Elements
     playerModal = document.getElementById('player-modal');
     videoPlayer = document.getElementById('video-player');
     closePlayerButton = document.getElementById('close-player-button');
@@ -36,6 +60,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (closePlayerButton) {
         closePlayerButton.addEventListener('click', closePlayer);
     }
+
+    if (categoryToggleButton && categoriesSidebar) {
+        categoryToggleButton.addEventListener('click', () => {
+            categoriesSidebar.classList.toggle('open');
+        });
+
+        categoriesSidebar.addEventListener('click', (event) => {
+            if (window.innerWidth <= 768 && event.target.matches('#categories-container li')) {
+                categoriesSidebar.classList.remove('open');
+            }
+        });
+    }
+
+    const categoriesContainerInitial = document.getElementById('categories-container');
+    if (categoriesContainerInitial) showContentPlaceholder(categoriesContainerInitial, 'login', 'Please log in to load categories.');
+    const channelsContainerInitial = document.getElementById('channels-container');
+    if (channelsContainerInitial) showContentPlaceholder(channelsContainerInitial, 'tv_off', 'Select a category to see content.');
 
     checkForExistingSession();
 
@@ -84,7 +125,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (data.user_info && data.user_info.auth === 1) {
-                displayMessage('Login successful!', 'success');
                 saveSession(data.user_info, data.server_info, serverUrl);
                 
                 window.currentUserInfo = data.user_info;
@@ -125,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function clearMessages() {
-        if (!playerModal || playerModal.style.display === 'none') {
+        if (!playerModal || !playerModal.classList.contains('visible')) { // Check class instead of style
              messageArea.textContent = '';
              messageArea.className = 'message-area';
         }
@@ -159,7 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (mainAppSection) mainAppSection.style.display = 'flex';
                 
                 serverUrlInput.value = window.currentServerUrl;
-                displayMessage(`Welcome back, ${window.currentUserInfo.username}! Restoring session...`, 'success');
                 fetchCategories(window.currentUserInfo, window.currentServerUrl);
             } else {
                 console.log('No existing session found or session incomplete.');
@@ -179,9 +218,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchCategories(userInfo, serverUrl) {
+        const categoriesContainer = document.getElementById('categories-container');
+        showLoadingSpinner(categoriesContainer, 'Loading categories...'); 
+
         const { username, password } = userInfo;
         if (!password) {
-            displayMessage('Password not found in session. Cannot fetch categories. Please log in again.', 'error');
+            showContentPlaceholder(categoriesContainer, 'lock_person', 'Session error. Please log in again.');
             localStorage.clear();
             window.currentUserInfo = null; window.currentServerUrl = null;
             window.originalChannelsForCategory = null; window.currentCategoryType = null;
@@ -192,9 +234,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
         const actions = { live: 'get_live_categories', vod: 'get_vod_categories', series: 'get_series_categories' };
-        const categories = {};
-        messageArea.className = 'message-area';
-        displayMessage('Fetching categories...', 'success');
+        const categories = { live: [], vod: [], series: [] }; 
+        let fetchErrorOccurred = false;
 
         for (const type of Object.keys(actions)) {
             const apiUrl = `${baseUrl}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=${actions[type]}`;
@@ -212,22 +253,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     categories[type] = [];
                 } else {
                     console.warn(`Unexpected data format for ${type} categories:`, data);
-                    categories[type] = [];
+                    categories[type] = []; 
                 }
             } catch (error) {
                 console.error(`Failed to fetch ${type} categories:`, error);
-                const currentMsg = messageArea.textContent.startsWith("Fetching categories...") ? "" : messageArea.textContent;
-                const errorSeparator = currentMsg && !currentMsg.includes("Error fetching") ? " | " : "";
-                displayMessage((currentMsg.includes("Error fetching") ? currentMsg : "Error fetching categories. ") + errorSeparator + `${type} failed. `, 'error');
-                categories[type] = [];
+                fetchErrorOccurred = true;
             }
         }
         
         window.xtreamCategories = categories;
-        if (!messageArea.textContent.includes("Error fetching")) {
-             displayMessage('Categories fetched. Select a category to browse.', 'success');
+
+        if (
+            (!categories.live || categories.live.length === 0) &&
+            (!categories.vod || categories.vod.length === 0) &&
+            (!categories.series || categories.series.length === 0)
+        ) {
+            if(fetchErrorOccurred) {
+                showContentPlaceholder(categoriesContainer, 'signal_disconnected', 'Could not load categories. Check server or connection.');
+            } else {
+                showContentPlaceholder(categoriesContainer, 'category', 'No categories available from this server.');
+            }
+        } else {
+            renderCategories(categories); 
         }
-        renderCategories(window.xtreamCategories);
     }
 
     function renderCategories(categories) {
@@ -243,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (categories.live && categories.live.length > 0) {
             hasContent = true;
-            html += '<h3>Live TV</h3><ul>';
+            html += `<h3><span class="material-symbols-rounded category-title-icon">live_tv</span> Live TV</h3><ul>`;
             categories.live.forEach(cat => {
                 html += `<li data-category-id="${cat.category_id}" data-category-type="live" data-category-name="${encodeURIComponent(cat.category_name)}">${cat.category_name}</li>`;
             });
@@ -251,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (categories.vod && categories.vod.length > 0) {
             hasContent = true;
-            html += '<h3>VOD</h3><ul>';
+            html += `<h3><span class="material-symbols-rounded category-title-icon">movie</span> VOD</h3><ul>`;
             categories.vod.forEach(cat => {
                 html += `<li data-category-id="${cat.category_id}" data-category-type="vod" data-category-name="${encodeURIComponent(cat.category_name)}">${cat.category_name}</li>`;
             });
@@ -259,15 +307,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (categories.series && categories.series.length > 0) {
             hasContent = true;
-            html += '<h3>Series</h3><ul>';
+            html += `<h3><span class="material-symbols-rounded category-title-icon">video_library</span> Series</h3><ul>`;
             categories.series.forEach(cat => {
                 html += `<li data-category-id="${cat.category_id}" data-category-type="series" data-category-name="${encodeURIComponent(cat.category_name)}">${cat.category_name}</li>`;
             });
             html += '</ul>';
         }
 
-        if (!hasContent) {
-            html = '<p>No categories found or all categories failed to load.</p>';
+        if (!hasContent) { 
+             showContentPlaceholder(categoriesContainer, 'category', 'No categories available from this server.');
+             return;
         }
         categoriesContainer.innerHTML = html;
 
@@ -288,8 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleCategoryClick(categoryId, categoryType, categoryName) {
         const channelsContainer = document.getElementById('channels-container');
-        channelsContainer.innerHTML = `<p>Loading content for "${categoryName}"...</p>`;
-        displayMessage(`Fetching ${categoryType} for "${categoryName}"...`, 'success');
+        showLoadingSpinner(channelsContainer, `Loading ${categoryName}...`); 
 
         const categoryItems = document.querySelectorAll('#categories-container li');
         categoryItems.forEach(item => item.classList.remove('active'));
@@ -297,14 +345,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeCategoryElement) {
             activeCategoryElement.classList.add('active');
         }
+        
+        if (window.innerWidth <= 768 && categoriesSidebar && categoriesSidebar.classList.contains('open')) {
+            categoriesSidebar.classList.remove('open');
+        }
+
 
         const userInfo = window.currentUserInfo || JSON.parse(localStorage.getItem('xtream_user_info'));
         const serverUrl = window.currentServerUrl || localStorage.getItem('xtream_last_login_url');
 
         if (!userInfo || !serverUrl || !userInfo.username || !userInfo.password) {
-            displayMessage('User session not found or incomplete. Please login again.', 'error');
-            console.error('User session not found or incomplete for fetching channels.');
-            channelsContainer.innerHTML = `<p>Error: User session not found or incomplete. Please login again.</p>`;
+            showContentPlaceholder(channelsContainer, 'lock_person', 'Session error. Please log in again.');
             window.originalChannelsForCategory = null; 
             window.currentCategoryType = null;
             return;
@@ -320,9 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'vod': action = 'get_vod_streams'; params += `&category_id=${categoryId}`; break;
             case 'series': action = 'get_series_info'; params += `&series_id=${categoryId}`; break;
             default:
-                console.error('Unknown category type:', categoryType);
-                channelsContainer.innerHTML = `<p>Error: Unknown category type.</p>`;
-                displayMessage('Unknown category type.', 'error');
+                showContentPlaceholder(channelsContainer, 'error_outline', 'Unknown category type.');
                 window.originalChannelsForCategory = null; 
                 window.currentCategoryType = null;
                 return;
@@ -339,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
                      if(errorJson && (errorJson.message || (errorJson.user_info && errorJson.user_info.message))) 
                         errorDetail = errorJson.message || errorJson.user_info.message;
                  } catch(jsonError) { /* ignore */ }
-                throw new Error(`${errorDetail} while fetching content for ${categoryName}`);
+                throw new Error(`${errorDetail}`);
             }
             const data = await response.json();
             
@@ -350,25 +399,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const searchBox = document.getElementById('search-box');
             if (searchBox) searchBox.value = ''; 
 
-            renderChannels(data, categoryType); 
+            renderChannels(data, categoryType, false); 
 
         } catch (error) {
             console.error(`Failed to fetch content for ${categoryName}:`, error);
-            channelsContainer.innerHTML = `<p>Error loading content for "${categoryName}". Please try again.</p>`;
-            displayMessage(`Error fetching content for "${categoryName}": ${error.message}`, 'error');
+            showContentPlaceholder(channelsContainer, 'signal_disconnected', `Error loading: ${error.message || 'Check connection.'}`);
             window.originalChannelsForCategory = null; 
             window.currentCategoryType = null;
         }
     }
 
-    function renderChannels(items, categoryType) {
+    function renderChannels(items, categoryType, isSearchResult = false) {
         const channelsContainer = document.getElementById('channels-container');
         channelsContainer.innerHTML = ''; 
 
         if (!items || (Array.isArray(items) && items.length === 0)) {
             if (categoryType === 'series' && items && typeof items === 'object' && items.info) {
             } else {
-                channelsContainer.innerHTML = '<p>No channels or items found.</p>'; 
+                let message = isSearchResult ? "No results match your search." : `No items found in this category.`;
+                let icon = isSearchResult ? "search_off" : "sentiment_very_dissatisfied"; 
+                showContentPlaceholder(channelsContainer, icon, message);
                 return;
             }
         }
@@ -426,7 +476,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         channelsContainer.appendChild(grid);
         if (grid.childNodes.length === 0 && !(categoryType === 'series' && typeof items === 'object' && items.info)) {
-            channelsContainer.innerHTML = '<p>No channels or items found.</p>';
+           let message = isSearchResult ? "No results match your search." : `No items found in this category.`;
+           let icon = isSearchResult ? "search_off" : "sentiment_very_dissatisfied";
+           showContentPlaceholder(channelsContainer, icon, message);
         }
     }
 
@@ -448,16 +500,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const streamId = streamData.streamId;
         let streamUrl = '';
         let fullStreamInfo = {};
-        let isHlsStream = false; // Flag to determine if HLS.js should be used
+        let isHlsStream = false; 
     
         switch (streamData.streamType) {
             case 'live':
                 streamUrl = `${serverUrl}/live/${username}/${password}/${streamId}.ts`;
-                isHlsStream = true; // Live streams are typically HLS
+                isHlsStream = true; 
                 fullStreamInfo = { type: 'live', name: decodedStreamName, source: streamUrl, streamId: streamId, originalData: streamData };
                 break;
             case 'vod':
-                let containerExtension = 'mp4'; // Default
+                let containerExtension = 'mp4'; 
                 if (window.originalChannelsForCategory && Array.isArray(window.originalChannelsForCategory)) {
                     const vodItem = window.originalChannelsForCategory.find(item => (String(item.stream_id) === String(streamId) || String(item.id) === String(streamId)));
                     if (vodItem && vodItem.container_extension) {
@@ -468,14 +520,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (containerExtension === 'm3u8') {
                     isHlsStream = true;
                 } else {
-                    isHlsStream = false; // It's a progressive download (mp4, mkv, etc.)
+                    isHlsStream = false; 
                 }
                 fullStreamInfo = { type: 'vod', name: decodedStreamName, source: streamUrl, streamId: streamId, containerExtension: containerExtension, isHls: isHlsStream, originalData: streamData };
                 break;
             case 'series':
                 console.log(`Series selected: ${decodedStreamName} (ID: ${streamId}). Episode player not implemented.`);
                 displayMessage(`Series selected: ${decodedStreamName}. To play, select an episode (not yet implemented).`, 'success');
-                if (playerModal) playerModal.style.display = 'none'; 
+                if (playerModal) playerModal.classList.remove('visible'); // Ensure it's hidden
                 return; 
             default:
                 console.error('Unknown stream type:', streamData.streamType);
@@ -485,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
         console.log('Player Data:', fullStreamInfo);
     
-        if (playerModal) playerModal.style.display = 'flex';
+        if (playerModal) playerModal.classList.add('visible');
         if (playerStreamInfo) playerStreamInfo.textContent = decodedStreamName;
     
         if (hls) { 
@@ -497,8 +549,19 @@ document.addEventListener('DOMContentLoaded', () => {
     
         if (isHlsStream) {
             if (Hls.isSupported()) {
-                console.log("HLS.js is supported. Initializing HLS.js player for HLS stream:", streamUrl);
-                hls = new Hls({ /* debug: true */ });
+                console.log("HLS.js is supported. Initializing HLS.js player for HLS stream.");
+                hls = new Hls({
+                    debug: true, 
+                    xhrSetup: function(xhr, url) {
+                        try {
+                            xhr.withCredentials = true; 
+                            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                            console.log(`[HLS.js XHR Setup] withCredentials set for URL: ${url}`);
+                        } catch (e) {
+                            console.error("[HLS.js XHR Setup] Error setting XHR properties:", e);
+                        }
+                    }
+                });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(videoPlayer);
                 hls.on(Hls.Events.MANIFEST_PARSED, function() {
@@ -546,14 +609,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 console.error("HLS is not supported for this HLS stream.");
                 displayMessage("Your browser does not support HLS video playback.", "error");
-                if (playerModal) playerModal.style.display = 'none';
+                if (playerModal) playerModal.classList.remove('visible');
             }
-        } else { // Progressive download (e.g., MP4, MKV VOD)
+        } else { 
             console.log("Progressive download stream. Setting video src directly:", streamUrl);
             const videoFormat = `video/${fullStreamInfo.containerExtension || 'mp4'}`;
             if (videoPlayer.canPlayType(videoFormat)) {
                 videoPlayer.src = streamUrl;
-                const playPromise = videoPlayer.play(); // Try to play immediately
+                const playPromise = videoPlayer.play(); 
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
                         console.error("Error trying to play progressive download video:", error);
@@ -567,7 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 console.error(`Browser cannot play video format: ${fullStreamInfo.containerExtension}`);
                 displayMessage(`Your browser does not support the .${fullStreamInfo.containerExtension} video format.`, "error");
-                if (playerModal) playerModal.style.display = 'none';
+                if (playerModal) playerModal.classList.remove('visible');
             }
         }
         
@@ -580,11 +643,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function closePlayer() {
-        if (playerModal) playerModal.style.display = 'none';
+        if (playerModal) playerModal.classList.remove('visible');
         if (videoPlayer) {
             videoPlayer.pause();
-            videoPlayer.removeAttribute('src'); // Use removeAttribute for cleaner state
-            videoPlayer.load(); // Request to load empty source, helps stop download & clear state
+            videoPlayer.removeAttribute('src'); 
+            videoPlayer.load(); 
         }
         if (hls) {
             hls.destroy();
@@ -619,13 +682,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     
         if (!searchTerm) {
-            renderChannels(window.originalChannelsForCategory, window.currentCategoryType);
+            renderChannels(window.originalChannelsForCategory, window.currentCategoryType, false); 
             return;
         }
     
         if (!Array.isArray(window.originalChannelsForCategory)) {
             console.warn('Original data for category is not an array, cannot filter:', window.originalChannelsForCategory);
-            renderChannels([], window.currentCategoryType); 
+            renderChannels([], window.currentCategoryType, true); 
             return;
         }
     
@@ -634,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return itemName.includes(searchTerm);
         });
     
-        renderChannels(filteredItems, window.currentCategoryType);
+        renderChannels(filteredItems, window.currentCategoryType, true); 
     }
 
     const logoutButton = document.getElementById('logout-button');
@@ -655,9 +718,11 @@ document.addEventListener('DOMContentLoaded', () => {
             serverUrlInput.value = ''; usernameInput.value = ''; passwordInput.value = '';
             clearMessages();
             const channelsContainer = document.getElementById('channels-container');
-            if(channelsContainer) channelsContainer.innerHTML = '<p>Select a category to see channels.</p>';
+            if(channelsContainer) showContentPlaceholder(channelsContainer, 'tv_off', 'Select a category to see content.');
             const categoriesContainer = document.getElementById('categories-container');
-            if(categoriesContainer) categoriesContainer.innerHTML = '<p>Loading categories...</p>';
+            if(categoriesContainer) showContentPlaceholder(categoriesContainer, 'login', 'Login to load categories.');
+
+
             displayMessage('You have been logged out.', 'success');
         });
     }
