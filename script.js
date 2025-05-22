@@ -4,6 +4,7 @@ window.currentServerUrl = null;
 // Global variables for search
 window.originalChannelsForCategory = null; 
 window.currentCategoryType = null; 
+window.m3uChannels = null; // Store parsed M3U channels
 
 // Global HLS.js instance and player elements
 let hls = null; 
@@ -48,6 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const categoryToggleButton = document.getElementById('category-toggle-button');
     const categoriesSidebar = document.getElementById('categories-sidebar');
 
+    const uploadM3uButton = document.getElementById('upload-m3u-button');
+    const m3uFileInput = document.getElementById('m3u-file-input');
+
+
     playerModal = document.getElementById('player-modal');
     videoPlayer = document.getElementById('video-player');
     closePlayerButton = document.getElementById('close-player-button');
@@ -72,11 +77,59 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    
+    if (uploadM3uButton && m3uFileInput) {
+        uploadM3uButton.addEventListener('click', () => {
+            m3uFileInput.click(); 
+        });
+
+        m3uFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const m3uContent = e.target.result;
+                    try {
+                        const channels = parseM3U(m3uContent);
+                        console.log('Parsed M3U Channels:', channels);
+                        if (channels.length > 0) {
+                            displayMessage(`Successfully parsed ${channels.length} channels from ${file.name}. Displaying...`, 'success');
+                            window.m3uChannels = channels; 
+                            window.xtreamCategories = null; 
+                            window.originalChannelsForCategory = null; 
+                            window.currentCategoryType = 'm3u'; 
+                            
+                            document.getElementById('login-section').style.display = 'none';
+                            document.getElementById('main-app-section').style.display = 'flex';
+                            document.getElementById('search-box').value = ''; 
+
+                            displayM3UChannels(channels, file.name);
+                        } else {
+                            displayMessage('No channels found in the M3U file.', 'error');
+                        }
+                    } catch (error) {
+                        console.error("Error parsing M3U:", error);
+                        displayMessage(`Error parsing M3U file: ${error.message}`, 'error');
+                    } finally {
+                        m3uFileInput.value = null; 
+                    }
+                };
+                reader.onerror = function() {
+                    console.error("Error reading M3U file.");
+                    displayMessage('Error reading M3U file.', 'error');
+                    m3uFileInput.value = null;
+                };
+                reader.readAsText(file);
+            }
+        });
+    }
+
 
     const categoriesContainerInitial = document.getElementById('categories-container');
-    if (categoriesContainerInitial) showContentPlaceholder(categoriesContainerInitial, 'login', 'Please log in to load categories.');
+    if (categoriesContainerInitial) showContentPlaceholder(categoriesContainerInitial, 'login', 'Please log in or upload M3U.');
     const channelsContainerInitial = document.getElementById('channels-container');
     if (channelsContainerInitial) showContentPlaceholder(channelsContainerInitial, 'tv_off', 'Select a category to see content.');
+
 
     checkForExistingSession();
 
@@ -129,6 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 window.currentUserInfo = data.user_info;
                 window.currentServerUrl = serverUrl;
+                window.m3uChannels = null; // Clear M3U channels if Xtream login is successful
 
                 console.log('User Info:', window.currentUserInfo);
                 console.log('Server Info:', data.server_info);
@@ -165,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function clearMessages() {
-        if (!playerModal || !playerModal.classList.contains('visible')) { // Check class instead of style
+        if (!playerModal || !playerModal.classList.contains('visible')) { 
              messageArea.textContent = '';
              messageArea.className = 'message-area';
         }
@@ -278,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderCategories(categories) {
+    function renderCategories(categories) { // Handles Xtream categories
         const categoriesContainer = document.getElementById('categories-container');
         if (!categoriesContainer) {
             console.error('Categories container not found');
@@ -320,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         categoriesContainer.innerHTML = html;
 
-        const categoryItems = categoriesContainer.querySelectorAll('li');
+        const categoryItems = categoriesContainer.querySelectorAll('li[data-category-type]'); // More specific selector
         categoryItems.forEach(item => {
             item.addEventListener('click', () => {
                 const categoryId = item.dataset.categoryId;
@@ -334,8 +388,85 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+    
+    function displayM3UChannels(parsedChannels, fileName) {
+        const categoriesContainer = document.getElementById('categories-container');
+        const channelsContainer = document.getElementById('channels-container');
+        
+        categoriesContainer.innerHTML = '';
+        showContentPlaceholder(channelsContainer, 'playlist_play', 'Select a category from your M3U playlist.');
+    
+        let m3uCategories = {};
+        let hasGroups = false;
+        parsedChannels.forEach(channel => {
+            const group = channel.group || `M3U: ${fileName}`; 
+            if (channel.group) hasGroups = true;
+            if (!m3uCategories[group]) {
+                m3uCategories[group] = [];
+            }
+            m3uCategories[group].push(channel);
+        });
+    
+        if (!hasGroups && parsedChannels.length > 0) {
+            const defaultGroupName = `M3U: ${fileName}`;
+            renderM3UCategories([{ name: defaultGroupName, type: 'm3u_group' }], m3uCategories, true);
+        } else if (Object.keys(m3uCategories).length > 0) {
+            const categoryListForRender = Object.keys(m3uCategories).map(groupName => ({
+                name: groupName,
+                type: 'm3u_group' 
+            }));
+            renderM3UCategories(categoryListForRender, m3uCategories, false);
+        } else {
+            showContentPlaceholder(categoriesContainer, 'error', 'No displayable content found in M3U.');
+        }
+    }
 
-    async function handleCategoryClick(categoryId, categoryType, categoryName) {
+    function renderM3UCategories(categoryList, allM3UChannelsGrouped, autoSelectFirst) {
+        const categoriesContainer = document.getElementById('categories-container');
+        categoriesContainer.innerHTML = ''; 
+    
+        if (!categoryList || categoryList.length === 0) {
+            showContentPlaceholder(categoriesContainer, 'category', 'No categories in M3U.');
+            return;
+        }
+    
+        let html = `<h3><span class="material-symbols-rounded category-title-icon">list_alt</span> M3U Playlist</h3><ul>`;
+        categoryList.forEach(cat => {
+            const groupChannelCount = allM3UChannelsGrouped[cat.name] ? allM3UChannelsGrouped[cat.name].length : 0;
+            html += `<li data-m3u-group-name="${encodeURIComponent(cat.name)}" data-category-type="m3u_group">
+                        ${cat.name} 
+                        (${groupChannelCount})
+                     </li>`;
+        });
+        html += '</ul>';
+        categoriesContainer.innerHTML = html;
+    
+        const categoryItems = categoriesContainer.querySelectorAll('li[data-category-type="m3u_group"]');
+        categoryItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const groupName = decodeURIComponent(item.dataset.m3uGroupName);
+                
+                categoryItems.forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+    
+                window.originalChannelsForCategory = allM3UChannelsGrouped[groupName] || [];
+                window.currentCategoryType = 'm3u'; 
+                document.getElementById('search-box').value = ''; 
+                renderChannels(window.originalChannelsForCategory, 'm3u', false);
+    
+                if (window.innerWidth <= 768 && categoriesSidebar && categoriesSidebar.classList.contains('open')) {
+                    categoriesSidebar.classList.remove('open');
+                }
+            });
+        });
+        
+        if (autoSelectFirst && categoryItems.length > 0) {
+            categoryItems[0].click(); 
+        }
+    }
+
+
+    async function handleCategoryClick(categoryId, categoryType, categoryName) { // Handles Xtream category clicks
         const channelsContainer = document.getElementById('channels-container');
         showLoadingSpinner(channelsContainer, `Loading ${categoryName}...`); 
 
@@ -349,7 +480,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.innerWidth <= 768 && categoriesSidebar && categoriesSidebar.classList.contains('open')) {
             categoriesSidebar.classList.remove('open');
         }
-
 
         const userInfo = window.currentUserInfo || JSON.parse(localStorage.getItem('xtream_user_info'));
         const serverUrl = window.currentServerUrl || localStorage.getItem('xtream_last_login_url');
@@ -416,7 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!items || (Array.isArray(items) && items.length === 0)) {
             if (categoryType === 'series' && items && typeof items === 'object' && items.info) {
             } else {
-                let message = isSearchResult ? "No results match your search." : `No items found in this category.`;
+                let message = isSearchResult ? "No results match your search." : (categoryType === 'm3u' ? "No channels in this M3U group." : "No items found in this category.");
                 let icon = isSearchResult ? "search_off" : "sentiment_very_dissatisfied"; 
                 showContentPlaceholder(channelsContainer, icon, message);
                 return;
@@ -456,11 +586,18 @@ document.addEventListener('DOMContentLoaded', () => {
             items.forEach(item => {
                 const card = document.createElement('div');
                 card.className = 'channel-card';
-                card.dataset.streamId = categoryType === 'series' ? item.series_id : (item.stream_id || item.id);
-                card.dataset.streamType = categoryType;
+                // For M3U, stream_id was generated during parse. For Xtream, it's from API.
+                card.dataset.streamId = item.stream_id || (categoryType === 'series' ? item.series_id : item.id); // Ensure M3U items have stream_id
+                card.dataset.streamType = categoryType; // 'live', 'vod', 'series', or 'm3u'
                 card.dataset.streamName = encodeURIComponent(item.name || item.title || 'Unknown Stream');
+                // Add M3U specific data if available (used by handleStreamClick for M3U)
+                if (categoryType === 'm3u' && item.url) {
+                    card.dataset.m3uUrl = item.url; 
+                }
+
                 let name = item.name || item.title || 'Unnamed Stream';
-                let iconUrl = item.stream_icon || item.icon || item.icon_url || item.movie_image || item.cover || item.logo || './placeholder.png';
+                let iconUrl = item.logo || item.stream_icon || item.icon || item.icon_url || item.movie_image || item.cover || './placeholder.png';
+                
                 card.innerHTML = `
                     <img src="${iconUrl}" alt="${name}" onerror="this.onerror=null;this.src='./placeholder.png';">
                     <div class="card-body">
@@ -476,7 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         channelsContainer.appendChild(grid);
         if (grid.childNodes.length === 0 && !(categoryType === 'series' && typeof items === 'object' && items.info)) {
-           let message = isSearchResult ? "No results match your search." : `No items found in this category.`;
+           let message = isSearchResult ? "No results match your search." : (categoryType === 'm3u' ? "No channels in this M3U group." : "No items found in this category.");
            let icon = isSearchResult ? "search_off" : "sentiment_very_dissatisfied";
            showContentPlaceholder(channelsContainer, icon, message);
         }
@@ -484,72 +621,87 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleStreamClick(streamData) {
         const decodedStreamName = decodeURIComponent(streamData.streamName);
-        
-        const userInfo = window.currentUserInfo || JSON.parse(localStorage.getItem('xtream_user_info'));
-        let serverUrl = window.currentServerUrl || localStorage.getItem('xtream_last_login_url');
+        let streamUrlToPlay = '';
+        let isHlsStream = false;
+        let fullStreamInfo = {};
     
-        if (!userInfo || !serverUrl || !userInfo.username || !userInfo.password) {
-            displayMessage('Cannot play stream: User session or server info is missing. Please log in again.', 'error');
-            console.error('User session or server info missing for stream URL construction.');
+        if (streamData.streamType === 'm3u') {
+            // M3U stream: URL is directly in the item, or should be retrieved from the stored m3uChannels/originalChannelsForCategory
+            const m3uList = window.originalChannelsForCategory || window.m3uChannels || [];
+            const m3uItem = m3uList.find(ch => String(ch.stream_id) === String(streamData.streamId));
+            
+            if (!m3uItem || !m3uItem.url) {
+                displayMessage('Error: M3U Stream URL not found.', 'error');
+                console.error("M3U stream URL not found for ID:", streamData.streamId);
+                return;
+            }
+            streamUrlToPlay = m3uItem.url;
+            isHlsStream = streamUrlToPlay.toLowerCase().includes('.m3u8');
+            fullStreamInfo = { type: 'm3u', name: decodedStreamName, source: streamUrlToPlay, streamId: streamData.streamId, isHls: isHlsStream, originalData: m3uItem };
+            console.log("M3U Stream URL:", streamUrlToPlay);
+        } else { // Xtream Codes stream
+            const userInfo = window.currentUserInfo || JSON.parse(localStorage.getItem('xtream_user_info'));
+            let serverUrl = window.currentServerUrl || localStorage.getItem('xtream_last_login_url');
+        
+            if (!userInfo || !serverUrl || !userInfo.username || !userInfo.password) {
+                displayMessage('Cannot play stream: User session or server info is missing. Please log in again.', 'error');
+                console.error('User session or server info missing for stream URL construction.');
+                return;
+            }
+            
+            serverUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+            const username = userInfo.username;
+            const password = userInfo.password;
+            const streamId = streamData.streamId;
+    
+            switch (streamData.streamType) {
+                case 'live':
+                    streamUrlToPlay = `${serverUrl}/live/${username}/${password}/${streamId}.ts`;
+                    isHlsStream = true; 
+                    fullStreamInfo = { type: 'live', name: decodedStreamName, source: streamUrlToPlay, streamId: streamId, originalData: streamData };
+                    break;
+                case 'vod':
+                    let containerExtension = 'mp4'; 
+                    if (window.originalChannelsForCategory && Array.isArray(window.originalChannelsForCategory)) {
+                        const vodItem = window.originalChannelsForCategory.find(item => (String(item.stream_id) === String(streamId) || String(item.id) === String(streamId)));
+                        if (vodItem && vodItem.container_extension) {
+                            containerExtension = vodItem.container_extension.toLowerCase();
+                        }
+                    }
+                    streamUrlToPlay = `${serverUrl}/movie/${username}/${password}/${streamId}.${containerExtension}`;
+                    isHlsStream = containerExtension === 'm3u8';
+                    fullStreamInfo = { type: 'vod', name: decodedStreamName, source: streamUrlToPlay, streamId: streamId, containerExtension: containerExtension, isHls: isHlsStream, originalData: streamData };
+                    break;
+                case 'series': // Should not reach here if series card itself is not made clickable for direct play
+                    console.log(`Series selected: ${decodedStreamName} (ID: ${streamId}). Episode player not implemented.`);
+                    displayMessage(`Series selected: ${decodedStreamName}. To play, select an episode (not yet implemented).`, 'success');
+                    if (playerModal) playerModal.classList.remove('visible'); 
+                    return; 
+                default:
+                    console.error('Unknown stream type for player:', streamData.streamType);
+                    displayMessage('Cannot play stream: Unknown stream type.', 'error');
+                    return;
+            }
+        }
+    
+        if (!streamUrlToPlay) {
+            displayMessage('Error: Stream URL could not be determined.', 'error');
+            console.error("Stream URL is empty for stream:", decodedStreamName, streamData);
             return;
         }
         
-        serverUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
-        const username = userInfo.username;
-        const password = userInfo.password;
-        const streamId = streamData.streamId;
-        let streamUrl = '';
-        let fullStreamInfo = {};
-        let isHlsStream = false; 
-    
-        switch (streamData.streamType) {
-            case 'live':
-                streamUrl = `${serverUrl}/live/${username}/${password}/${streamId}.ts`;
-                isHlsStream = true; 
-                fullStreamInfo = { type: 'live', name: decodedStreamName, source: streamUrl, streamId: streamId, originalData: streamData };
-                break;
-            case 'vod':
-                let containerExtension = 'mp4'; 
-                if (window.originalChannelsForCategory && Array.isArray(window.originalChannelsForCategory)) {
-                    const vodItem = window.originalChannelsForCategory.find(item => (String(item.stream_id) === String(streamId) || String(item.id) === String(streamId)));
-                    if (vodItem && vodItem.container_extension) {
-                        containerExtension = vodItem.container_extension.toLowerCase();
-                    }
-                }
-                streamUrl = `${serverUrl}/movie/${username}/${password}/${streamId}.${containerExtension}`;
-                if (containerExtension === 'm3u8') {
-                    isHlsStream = true;
-                } else {
-                    isHlsStream = false; 
-                }
-                fullStreamInfo = { type: 'vod', name: decodedStreamName, source: streamUrl, streamId: streamId, containerExtension: containerExtension, isHls: isHlsStream, originalData: streamData };
-                break;
-            case 'series':
-                console.log(`Series selected: ${decodedStreamName} (ID: ${streamId}). Episode player not implemented.`);
-                displayMessage(`Series selected: ${decodedStreamName}. To play, select an episode (not yet implemented).`, 'success');
-                if (playerModal) playerModal.classList.remove('visible'); // Ensure it's hidden
-                return; 
-            default:
-                console.error('Unknown stream type:', streamData.streamType);
-                displayMessage('Cannot play stream: Unknown stream type.', 'error');
-                return;
-        }
-    
-        console.log('Player Data:', fullStreamInfo);
+        console.log('Player Data (common):', fullStreamInfo);
     
         if (playerModal) playerModal.classList.add('visible');
         if (playerStreamInfo) playerStreamInfo.textContent = decodedStreamName;
     
-        if (hls) { 
-            hls.destroy();
-            hls = null;
-        }
+        if (hls) { hls.destroy(); hls = null; }
         videoPlayer.removeAttribute('src'); 
         videoPlayer.load(); 
     
-        if (isHlsStream) {
+        if (isHlsStream) { // This flag is now correctly set for both M3U HLS and Xtream HLS
             if (Hls.isSupported()) {
-                console.log("HLS.js is supported. Initializing HLS.js player for HLS stream.");
+                console.log("HLS.js is supported. Initializing HLS.js player for HLS stream:", streamUrlToPlay);
                 hls = new Hls({
                     debug: true, 
                     xhrSetup: function(xhr, url) {
@@ -562,7 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 });
-                hls.loadSource(streamUrl);
+                hls.loadSource(streamUrlToPlay);
                 hls.attachMedia(videoPlayer);
                 hls.on(Hls.Events.MANIFEST_PARSED, function() {
                     console.log("Manifest parsed. Attempting to play HLS stream...");
@@ -593,8 +745,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) { 
-                console.log("Native HLS playback is supported. Using native player for HLS stream:", streamUrl);
-                videoPlayer.src = streamUrl;
+                console.log("Native HLS playback is supported. Using native player for HLS stream:", streamUrlToPlay);
+                videoPlayer.src = streamUrlToPlay;
                 const playPromise = videoPlayer.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
@@ -611,11 +763,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayMessage("Your browser does not support HLS video playback.", "error");
                 if (playerModal) playerModal.classList.remove('visible');
             }
-        } else { 
-            console.log("Progressive download stream. Setting video src directly:", streamUrl);
-            const videoFormat = `video/${fullStreamInfo.containerExtension || 'mp4'}`;
+        } else { // Progressive download (e.g., MP4, MKV VOD from M3U or Xtream)
+            console.log("Progressive download stream. Setting video src directly:", streamUrlToPlay);
+            const videoFormat = `video/${fullStreamInfo.containerExtension || 'mp4'}`; // Use containerExtension from fullStreamInfo
             if (videoPlayer.canPlayType(videoFormat)) {
-                videoPlayer.src = streamUrl;
+                videoPlayer.src = streamUrlToPlay;
                 const playPromise = videoPlayer.play(); 
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
@@ -636,7 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const allCards = document.querySelectorAll('.channel-card');
         allCards.forEach(card => card.classList.remove('active-stream'));
-        const clickedCard = document.querySelector(`.channel-card[data-stream-id='${streamId}'][data-stream-type='${streamData.streamType}']`);
+        const clickedCard = document.querySelector(`.channel-card[data-stream-id='${streamData.streamId}'][data-stream-type='${streamData.streamType}']`);
         if (clickedCard) {
             clickedCard.classList.add('active-stream');
         }
@@ -709,6 +861,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.currentServerUrl = null;
             window.originalChannelsForCategory = null;
             window.currentCategoryType = null;
+            window.m3uChannels = null; // Clear M3U data on logout
             const searchBox = document.getElementById('search-box');
             if (searchBox) searchBox.value = '';
 

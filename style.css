@@ -221,6 +221,7 @@ button[type="submit"]:hover {
 .header-controls { 
     display: flex;
     align-items: center;
+    gap: var(--spacing-md); /* Add gap between all controls */
 }
 
 #category-toggle-button {
@@ -264,7 +265,7 @@ button[type="submit"]:hover {
     background-color: var(--color-bg-input);
     color: var(--color-text-primary);
     font-size: 0.9rem;
-    margin-right: var(--spacing-md);
+    /* margin-right: var(--spacing-md); Removed, using gap on parent */
     transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 .header-controls input[type="search"]::placeholder { 
@@ -274,6 +275,33 @@ button[type="submit"]:hover {
     outline: none; 
     border-color: var(--color-border-input-focus);
     box-shadow: 0 0 8px var(--color-accent-glow); 
+}
+
+#upload-m3u-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    background-color: var(--color-accent-secondary); /* Different color to distinguish */
+    color: white;
+    font-size: 0.9rem;
+    font-weight: var(--font-weight-medium);
+    border: none;
+    cursor: pointer;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+}
+#upload-m3u-button:hover {
+    background-color: var(--color-accent-primary);
+    transform: translateY(-1px);
+}
+#upload-m3u-button:focus-visible {
+    outline: 2px solid var(--color-accent-focus);
+    outline-offset: 2px;
+    box-shadow: 0 0 8px var(--color-accent-focus-glow);
+}
+#upload-m3u-button .material-symbols-rounded {
+    font-size: 1.25rem;
 }
 
 #logout-button {
@@ -607,31 +635,29 @@ button[type="submit"]:hover {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: var(--color-bg-player-overlay); /* Use CSS var */
+    background-color: var(--color-bg-player-overlay); 
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    padding: var(--spacing-md); /* Use CSS var */
-    box-sizing: border-box;
-    /* Transition properties */
+    padding: var(--spacing-md); 
     visibility: hidden;
     opacity: 0;
     transition: opacity var(--transition-normal) ease-in-out, visibility 0s linear var(--transition-normal);
-    backdrop-filter: blur(8px); /* Kept from previous */
-    -webkit-backdrop-filter: blur(8px); /* Kept from previous */
+    backdrop-filter: blur(8px); 
+    -webkit-backdrop-filter: blur(8px); 
 }
 
 .player-modal-overlay.visible {
     visibility: visible;
     opacity: 1;
-    transition-delay: 0s; /* Override delay for showing */
+    transition-delay: 0s; 
 }
 
 .player-container {
-    background-color: rgba(30, 30, 50, 0.75); /* Kept for frosted glass */
-    backdrop-filter: blur(15px) saturate(150%); /* Kept for frosted glass */
-    -webkit-backdrop-filter: blur(15px) saturate(150%); /* Kept for frosted glass */
+    background-color: rgba(30, 30, 50, 0.75); 
+    backdrop-filter: blur(15px) saturate(150%); 
+    -webkit-backdrop-filter: blur(15px) saturate(150%); 
     padding: var(--spacing-lg);
     border-radius: var(--border-radius-xl);
     box-shadow: 0 10px 50px rgba(0,0,0,0.6);
@@ -639,12 +665,12 @@ button[type="submit"]:hover {
     width: 90%;
     max-width: 1000px;
     border: 1px solid var(--color-border-primary);
-    transform: scale(0.95); /* Start slightly scaled down */
+    transform: scale(0.95); 
     transition: transform var(--transition-normal) ease-in-out;
 }
 
 .player-modal-overlay.visible .player-container {
-    transform: scale(1); /* Scale to normal size when modal is visible */
+    transform: scale(1); 
 }
 
 #video-player {
@@ -699,15 +725,15 @@ button[type="submit"]:hover {
     color: var(--color-text-headings);
     font-size: 1.1rem;
     font-weight: var(--font-weight-medium);
-    padding: var(--spacing-sm) var(--spacing-md); /* Add more padding */
-    margin-top: var(--spacing-sm); /* Space from video */
+    padding: var(--spacing-sm) var(--spacing-md); 
+    margin-top: var(--spacing-sm); 
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    background-color: rgba(0,0,0,0.2); /* Subtle dark background for info area */
+    background-color: rgba(0,0,0,0.2); 
     border-radius: var(--border-radius-sm);
-    border-top: 1px solid var(--color-border-secondary); /* Separator line */
+    border-top: 1px solid var(--color-border-secondary); 
 }
 
 #video-player::-webkit-media-controls-panel { 
@@ -836,17 +862,20 @@ button[type="submit"]:hover {
         font-size: 0.9rem; 
     }
     button[type="submit"],
-    #logout-button { 
+    #logout-button,
+    #upload-m3u-button { /* Ensure all header buttons get smaller padding */
         padding: var(--spacing-sm) var(--spacing-md); 
         font-size: 1rem; 
     }
     .app-header h1 {
         font-size: 1.1rem; 
     }
-    #logout-button span:not(.material-symbols-rounded) { 
+    #logout-button span:not(.material-symbols-rounded),
+    #upload-m3u-button span:not(.material-symbols-rounded) { 
         display: none; 
     }
-    #logout-button {
+    #logout-button,
+    #upload-m3u-button { /* Adjust padding for icon-only buttons */
         padding: var(--spacing-sm); 
     }
     .app-header .search-wrapper input[type="search"] {
