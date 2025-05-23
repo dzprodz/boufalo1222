@@ -4,14 +4,15 @@ window.currentServerUrl = null;
 // Global variables for search
 window.originalChannelsForCategory = null; 
 window.currentCategoryType = null; 
-window.m3uChannels = null; // Store parsed M3U channels
+window.m3uChannels = null; 
 
-// Global HLS.js instance and player elements
-let hls = null; 
-let playerModal = null;
-let videoPlayer = null;
-let closePlayerButton = null;
-let playerStreamInfo = null;
+// Player elements and Video.js instance
+let videoJsPlayer = null;
+let playerViewModal = null; 
+let mainVideoPlayerElement = null; 
+let playerCloseButton = null; 
+let playerStreamTitle = null; 
+
 
 // Helper function to show loading spinner
 function showLoadingSpinner(containerElement, messageText = '') {
@@ -40,49 +41,52 @@ document.addEventListener('DOMContentLoaded', () => {
     const serverUrlInput = document.getElementById('server-url');
     const usernameInput = document.getElementById('username');
     const passwordInput = document.getElementById('password');
-    const messageArea = document.getElementById('message-area');
+    const loginMessageArea = document.getElementById('login-message-area'); 
     const loginButton = document.getElementById('login-button');
-    const loginSection = document.getElementById('login-section');
-    const mainAppSection = document.getElementById('main-app-section');
-    const searchBox = document.getElementById('search-box');
+    const loginView = document.getElementById('login-view'); 
+    const mainAppView = document.getElementById('main-app-view'); 
+    const searchInput = document.getElementById('search-input'); 
     
-    const categoryToggleButton = document.getElementById('category-toggle-button');
-    const categoriesSidebar = document.getElementById('categories-sidebar');
+    const sidebarToggleMobile = document.getElementById('sidebar-toggle-mobile');
+    const categoriesSidebar = document.getElementById('sidebar'); 
 
-    const uploadM3uButton = document.getElementById('upload-m3u-button');
-    const m3uFileInput = document.getElementById('m3u-file-input');
+    const m3uUploadTriggerButton = document.getElementById('m3u-upload-trigger-button');
+    const m3uUploadSidebarButton = document.getElementById('m3u-upload-sidebar-button');
+    const m3uFileInput = document.getElementById('m3u-file-input-main'); 
 
+    playerViewModal = document.getElementById('player-view-modal');
+    mainVideoPlayerElement = document.getElementById('main-video-player');
+    playerCloseButton = document.getElementById('player-close-button');
+    playerStreamTitle = document.getElementById('player-stream-title');
 
-    playerModal = document.getElementById('player-modal');
-    videoPlayer = document.getElementById('video-player');
-    closePlayerButton = document.getElementById('close-player-button');
-    playerStreamInfo = document.getElementById('player-stream-info');
-
-    if (searchBox) {
-        searchBox.addEventListener('input', handleSearch);
+    if (searchInput) {
+        searchInput.addEventListener('input', handleSearch);
     }
 
-    if (closePlayerButton) {
-        closePlayerButton.addEventListener('click', closePlayer);
+    if (playerCloseButton) {
+        playerCloseButton.addEventListener('click', closePlayer);
     }
 
-    if (categoryToggleButton && categoriesSidebar) {
-        categoryToggleButton.addEventListener('click', () => {
+    if (sidebarToggleMobile && categoriesSidebar) {
+        sidebarToggleMobile.addEventListener('click', () => {
             categoriesSidebar.classList.toggle('open');
         });
 
         categoriesSidebar.addEventListener('click', (event) => {
-            if (window.innerWidth <= 768 && event.target.matches('#categories-container li')) {
+            if (window.innerWidth <= 768 && event.target.matches('#category-nav li')) { 
                 categoriesSidebar.classList.remove('open');
             }
         });
     }
     
-    if (uploadM3uButton && m3uFileInput) {
-        uploadM3uButton.addEventListener('click', () => {
-            m3uFileInput.click(); 
-        });
+    if (m3uUploadTriggerButton && m3uFileInput) {
+        m3uUploadTriggerButton.addEventListener('click', () => m3uFileInput.click());
+    }
+    if (m3uUploadSidebarButton && m3uFileInput) {
+        m3uUploadSidebarButton.addEventListener('click', () => m3uFileInput.click());
+    }
 
+    if (m3uFileInput) {
         m3uFileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
@@ -93,30 +97,30 @@ document.addEventListener('DOMContentLoaded', () => {
                         const channels = parseM3U(m3uContent);
                         console.log('Parsed M3U Channels:', channels);
                         if (channels.length > 0) {
-                            displayMessage(`Successfully parsed ${channels.length} channels from ${file.name}. Displaying...`, 'success');
+                            displayUIMessage(`Successfully parsed ${channels.length} channels from ${file.name}. Displaying...`, 'success', loginMessageArea); 
                             window.m3uChannels = channels; 
                             window.xtreamCategories = null; 
                             window.originalChannelsForCategory = null; 
                             window.currentCategoryType = 'm3u'; 
                             
-                            document.getElementById('login-section').style.display = 'none';
-                            document.getElementById('main-app-section').style.display = 'flex';
-                            document.getElementById('search-box').value = ''; 
+                            loginView.style.display = 'none';
+                            mainAppView.style.display = 'flex';
+                            if(searchInput) searchInput.value = ''; 
 
                             displayM3UChannels(channels, file.name);
                         } else {
-                            displayMessage('No channels found in the M3U file.', 'error');
+                            displayUIMessage('No channels found in the M3U file.', 'error', loginMessageArea);
                         }
                     } catch (error) {
                         console.error("Error parsing M3U:", error);
-                        displayMessage(`Error parsing M3U file: ${error.message}`, 'error');
+                        displayUIMessage(`Error parsing M3U file: ${error.message}`, 'error', loginMessageArea);
                     } finally {
                         m3uFileInput.value = null; 
                     }
                 };
                 reader.onerror = function() {
                     console.error("Error reading M3U file.");
-                    displayMessage('Error reading M3U file.', 'error');
+                    displayUIMessage('Error reading M3U file.', 'error', loginMessageArea);
                     m3uFileInput.value = null;
                 };
                 reader.readAsText(file);
@@ -124,40 +128,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
-    const categoriesContainerInitial = document.getElementById('categories-container');
-    if (categoriesContainerInitial) showContentPlaceholder(categoriesContainerInitial, 'login', 'Please log in or upload M3U.');
-    const channelsContainerInitial = document.getElementById('channels-container');
-    if (channelsContainerInitial) showContentPlaceholder(channelsContainerInitial, 'tv_off', 'Select a category to see content.');
-
+    const categoryNav = document.getElementById('category-nav'); 
+    if (categoryNav) showContentPlaceholder(categoryNav, 'login', 'Please log in or upload M3U.');
+    const channelGridContainer = document.getElementById('channel-grid-container'); 
+    if (channelGridContainer) showContentPlaceholder(channelGridContainer, 'tv_off', 'Select a category to see content.');
 
     checkForExistingSession();
+    updateBreadcrumbs(null, null); // Initial breadcrumb state
 
     loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        clearMessages();
+        clearUIMessages(loginMessageArea);
 
-        const serverUrl = serverUrlInput.value.trim();
-        const username = usernameInput.value.trim();
-        const password = passwordInput.value;
+        const serverUrlVal = serverUrlInput.value.trim();
+        const usernameVal = usernameInput.value.trim();
+        const passwordVal = passwordInput.value;
 
-        if (!serverUrl || !username || !password) {
-            displayMessage('All fields are required.', 'error');
+        if (!serverUrlVal || !usernameVal || !passwordVal) {
+            displayUIMessage('All fields are required.', 'error', loginMessageArea);
             return;
         }
 
         try {
-            new URL(serverUrl);
+            new URL(serverUrlVal);
         } catch (error) {
-            displayMessage('Invalid Server URL. Ensure it starts with http:// or https:// and is a valid address.', 'error');
+            displayUIMessage('Invalid Server URL. Ensure it starts with http:// or https:// and is a valid address.', 'error', loginMessageArea);
             return;
         }
 
         loginButton.disabled = true;
-        loginButton.textContent = 'Logging in...';
+        loginButton.innerHTML = '<span class="material-symbols-rounded spin">sync</span> Connecting...'; 
 
-        const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
-        const apiUrl = `${baseUrl}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+        const baseUrl = serverUrlVal.endsWith('/') ? serverUrlVal.slice(0, -1) : serverUrlVal;
+        const apiUrl = `${baseUrl}/player_api.php?username=${encodeURIComponent(usernameVal)}&password=${encodeURIComponent(passwordVal)}`;
 
         try {
             const response = await fetch(apiUrl, { method: 'GET', headers: { 'Accept': 'application/json' } });
@@ -178,22 +181,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (data.user_info && data.user_info.auth === 1) {
-                saveSession(data.user_info, data.server_info, serverUrl);
+                saveSession(data.user_info, data.server_info, serverUrlVal);
                 
                 window.currentUserInfo = data.user_info;
-                window.currentServerUrl = serverUrl;
-                window.m3uChannels = null; // Clear M3U channels if Xtream login is successful
+                window.currentServerUrl = serverUrlVal;
+                window.m3uChannels = null; 
 
                 console.log('User Info:', window.currentUserInfo);
                 console.log('Server Info:', data.server_info);
 
-                if (loginSection) loginSection.style.display = 'none';
-                if (mainAppSection) mainAppSection.style.display = 'flex';
+                loginView.style.display = 'none';
+                mainAppView.style.display = 'flex';
                 fetchCategories(window.currentUserInfo, window.currentServerUrl);
+                updateBreadcrumbs(null, null); 
             } else if (data.user_info && data.user_info.auth === 0) {
-                displayMessage(data.user_info.message || 'Authentication failed. Please check your credentials.', 'error');
+                displayUIMessage(data.user_info.message || 'Authentication failed. Please check your credentials.', 'error', loginMessageArea);
             } else {
-                displayMessage('Login failed. Unexpected response from server.', 'error');
+                displayUIMessage('Login failed. Unexpected response from server.', 'error', loginMessageArea);
                 console.error('Unexpected API response:', data);
             }
 
@@ -203,25 +207,29 @@ document.addEventListener('DOMContentLoaded', () => {
             if (error.message.startsWith('HTTP error') || (error.message.includes('failed') || error.message.includes('check your credentials'))) {
                 errorMessage = error.message;
             }
-            displayMessage(errorMessage, 'error');
+            displayUIMessage(errorMessage, 'error', loginMessageArea);
         } finally {
             loginButton.disabled = false;
-            loginButton.textContent = 'Login';
+            loginButton.innerHTML = '<span class="material-symbols-rounded">login</span> Connect';
         }
     });
-
-    function displayMessage(message, type) {
-        messageArea.textContent = message;
-        messageArea.className = 'message-area';
-        if (type) {
-            messageArea.classList.add(type);
+    
+    function displayUIMessage(message, type, areaElement) {
+        const targetArea = areaElement || loginMessageArea; 
+        if(targetArea){
+            targetArea.textContent = message;
+            targetArea.className = 'message-area'; 
+            if (type) {
+                targetArea.classList.add(type);
+            }
         }
     }
 
-    function clearMessages() {
-        if (!playerModal || !playerModal.classList.contains('visible')) { 
-             messageArea.textContent = '';
-             messageArea.className = 'message-area';
+    function clearUIMessages(areaElement) {
+        const targetArea = areaElement || loginMessageArea;
+        if (targetArea && (!playerViewModal || playerViewModal.style.display === 'none')) { 
+             targetArea.textContent = '';
+             targetArea.className = 'message-area';
         }
     }
 
@@ -233,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Session saved to localStorage.');
         } catch (e) {
             console.error('Error saving session to localStorage:', e);
-            displayMessage('Could not save session. Your browser might be blocking localStorage or out of space.', 'error');
+            displayUIMessage('Could not save session. Your browser might be blocking localStorage or out of space.', 'error', loginMessageArea);
         }
     }
 
@@ -249,15 +257,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.currentServerUrl = lastLoginUrl;
 
                 console.log('Existing session found for user:', window.currentUserInfo.username);
-                if (loginSection) loginSection.style.display = 'none';
-                if (mainAppSection) mainAppSection.style.display = 'flex';
+                loginView.style.display = 'none';
+                mainAppView.style.display = 'flex';
                 
-                serverUrlInput.value = window.currentServerUrl;
+                if(serverUrlInput) serverUrlInput.value = window.currentServerUrl;
                 fetchCategories(window.currentUserInfo, window.currentServerUrl);
+                updateBreadcrumbs(null, null); 
             } else {
                 console.log('No existing session found or session incomplete.');
-                if (mainAppSection) mainAppSection.style.display = 'none';
-                if (loginSection) loginSection.style.display = 'block';
+                mainAppView.style.display = 'none';
+                loginView.style.display = 'flex';
             }
         } catch (e) {
             console.error('Error checking for existing session in localStorage:', e);
@@ -266,23 +275,23 @@ document.addEventListener('DOMContentLoaded', () => {
             window.currentServerUrl = null;
             window.originalChannelsForCategory = null;
             window.currentCategoryType = null;
-            if (mainAppSection) mainAppSection.style.display = 'none';
-            if (loginSection) loginSection.style.display = 'block';
+            mainAppView.style.display = 'none';
+            loginView.style.display = 'flex';
         }
     }
 
     async function fetchCategories(userInfo, serverUrl) {
-        const categoriesContainer = document.getElementById('categories-container');
-        showLoadingSpinner(categoriesContainer, 'Loading categories...'); 
+        const categoryNavContainer = document.getElementById('category-nav');
+        showLoadingSpinner(categoryNavContainer, 'Loading categories...'); 
 
         const { username, password } = userInfo;
         if (!password) {
-            showContentPlaceholder(categoriesContainer, 'lock_person', 'Session error. Please log in again.');
+            showContentPlaceholder(categoryNavContainer, 'lock_person', 'Session error. Please log in again.');
             localStorage.clear();
             window.currentUserInfo = null; window.currentServerUrl = null;
             window.originalChannelsForCategory = null; window.currentCategoryType = null;
-            if (loginSection) loginSection.style.display = 'block';
-            if (mainAppSection) mainAppSection.style.display = 'none';
+            loginView.style.display = 'flex';
+            mainAppView.style.display = 'none';
             return;
         }
 
@@ -323,66 +332,55 @@ document.addEventListener('DOMContentLoaded', () => {
             (!categories.series || categories.series.length === 0)
         ) {
             if(fetchErrorOccurred) {
-                showContentPlaceholder(categoriesContainer, 'signal_disconnected', 'Could not load categories. Check server or connection.');
+                showContentPlaceholder(categoryNavContainer, 'signal_disconnected', 'Could not load categories.');
             } else {
-                showContentPlaceholder(categoriesContainer, 'category', 'No categories available from this server.');
+                showContentPlaceholder(categoryNavContainer, 'category', 'No categories available.');
             }
         } else {
             renderCategories(categories); 
         }
+         updateBreadcrumbs(null, null); 
     }
 
-    function renderCategories(categories) { // Handles Xtream categories
-        const categoriesContainer = document.getElementById('categories-container');
-        if (!categoriesContainer) {
-            console.error('Categories container not found');
-            return;
-        }
-        categoriesContainer.innerHTML = ''; 
+    function renderCategories(categories) { 
+        const categoryNavContainer = document.getElementById('category-nav');
+        if (!categoryNavContainer) return;
+        categoryNavContainer.innerHTML = ''; 
 
         let html = '';
         let hasContent = false;
+        const categoryTypes = [ 
+            { key: 'live', name: 'Live TV', icon: 'live_tv' },
+            { key: 'vod', name: 'Movies', icon: 'movie' }, 
+            { key: 'series', name: 'TV Series', icon: 'video_library' } 
+        ];
 
-        if (categories.live && categories.live.length > 0) {
-            hasContent = true;
-            html += `<h3><span class="material-symbols-rounded category-title-icon">live_tv</span> Live TV</h3><ul>`;
-            categories.live.forEach(cat => {
-                html += `<li data-category-id="${cat.category_id}" data-category-type="live" data-category-name="${encodeURIComponent(cat.category_name)}">${cat.category_name}</li>`;
-            });
-            html += '</ul>';
-        }
-        if (categories.vod && categories.vod.length > 0) {
-            hasContent = true;
-            html += `<h3><span class="material-symbols-rounded category-title-icon">movie</span> VOD</h3><ul>`;
-            categories.vod.forEach(cat => {
-                html += `<li data-category-id="${cat.category_id}" data-category-type="vod" data-category-name="${encodeURIComponent(cat.category_name)}">${cat.category_name}</li>`;
-            });
-            html += '</ul>';
-        }
-        if (categories.series && categories.series.length > 0) {
-            hasContent = true;
-            html += `<h3><span class="material-symbols-rounded category-title-icon">video_library</span> Series</h3><ul>`;
-            categories.series.forEach(cat => {
-                html += `<li data-category-id="${cat.category_id}" data-category-type="series" data-category-name="${encodeURIComponent(cat.category_name)}">${cat.category_name}</li>`;
-            });
-            html += '</ul>';
-        }
+        categoryTypes.forEach(catType => {
+            if (categories[catType.key] && categories[catType.key].length > 0) {
+                hasContent = true;
+                html += `<div class="category-group"><h3><span class="material-symbols-rounded category-title-icon">${catType.icon}</span> ${catType.name}</h3><ul>`;
+                categories[catType.key].forEach(cat => {
+                    html += `<li data-category-id="${cat.category_id}" data-category-type="${catType.key}" data-category-name="${encodeURIComponent(cat.category_name)}">${cat.category_name}</li>`;
+                });
+                html += '</ul></div>';
+            }
+        });
+        
 
         if (!hasContent) { 
-             showContentPlaceholder(categoriesContainer, 'category', 'No categories available from this server.');
+             showContentPlaceholder(categoryNavContainer, 'category', 'No categories available.');
              return;
         }
-        categoriesContainer.innerHTML = html;
+        categoryNavContainer.innerHTML = html;
 
-        const categoryItems = categoriesContainer.querySelectorAll('li[data-category-type]'); // More specific selector
+        const categoryItems = categoryNavContainer.querySelectorAll('li[data-category-type]');
         categoryItems.forEach(item => {
             item.addEventListener('click', () => {
                 const categoryId = item.dataset.categoryId;
                 const categoryType = item.dataset.categoryType;
                 const categoryName = decodeURIComponent(item.dataset.categoryName);
                 
-                const searchBox = document.getElementById('search-box');
-                if (searchBox) searchBox.value = ''; 
+                if(searchInput) searchInput.value = ''; 
                 
                 handleCategoryClick(categoryId, categoryType, categoryName);
             });
@@ -390,11 +388,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function displayM3UChannels(parsedChannels, fileName) {
-        const categoriesContainer = document.getElementById('categories-container');
-        const channelsContainer = document.getElementById('channels-container');
+        const categoryNavContainer = document.getElementById('category-nav');
+        const channelGridContainer = document.getElementById('channel-grid-container');
         
-        categoriesContainer.innerHTML = '';
-        showContentPlaceholder(channelsContainer, 'playlist_play', 'Select a category from your M3U playlist.');
+        categoryNavContainer.innerHTML = '';
+        showContentPlaceholder(channelGridContainer, 'playlist_play', 'Select a group from your M3U playlist.');
     
         let m3uCategories = {};
         let hasGroups = false;
@@ -410,38 +408,41 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!hasGroups && parsedChannels.length > 0) {
             const defaultGroupName = `M3U: ${fileName}`;
             renderM3UCategories([{ name: defaultGroupName, type: 'm3u_group' }], m3uCategories, true);
+            // Breadcrumb updated by renderM3UCategories auto-click
         } else if (Object.keys(m3uCategories).length > 0) {
             const categoryListForRender = Object.keys(m3uCategories).map(groupName => ({
                 name: groupName,
                 type: 'm3u_group' 
             }));
             renderM3UCategories(categoryListForRender, m3uCategories, false);
+            updateBreadcrumbs('m3u', null); 
         } else {
-            showContentPlaceholder(categoriesContainer, 'error', 'No displayable content found in M3U.');
+            showContentPlaceholder(categoryNavContainer, 'error', 'No displayable content found in M3U.');
+            updateBreadcrumbs(null, null);
         }
     }
 
     function renderM3UCategories(categoryList, allM3UChannelsGrouped, autoSelectFirst) {
-        const categoriesContainer = document.getElementById('categories-container');
-        categoriesContainer.innerHTML = ''; 
+        const categoryNavContainer = document.getElementById('category-nav');
+        categoryNavContainer.innerHTML = ''; 
     
         if (!categoryList || categoryList.length === 0) {
-            showContentPlaceholder(categoriesContainer, 'category', 'No categories in M3U.');
+            showContentPlaceholder(categoryNavContainer, 'category', 'No groups in M3U.');
             return;
         }
     
-        let html = `<h3><span class="material-symbols-rounded category-title-icon">list_alt</span> M3U Playlist</h3><ul>`;
+        let html = `<div class="category-group"><h3><span class="material-symbols-rounded category-title-icon">list_alt</span> M3U Playlist</h3><ul>`;
         categoryList.forEach(cat => {
             const groupChannelCount = allM3UChannelsGrouped[cat.name] ? allM3UChannelsGrouped[cat.name].length : 0;
             html += `<li data-m3u-group-name="${encodeURIComponent(cat.name)}" data-category-type="m3u_group">
                         ${cat.name} 
-                        (${groupChannelCount})
+                        <span class="category-count">(${groupChannelCount})</span>
                      </li>`;
         });
-        html += '</ul>';
-        categoriesContainer.innerHTML = html;
+        html += '</ul></div>';
+        categoryNavContainer.innerHTML = html;
     
-        const categoryItems = categoriesContainer.querySelectorAll('li[data-category-type="m3u_group"]');
+        const categoryItems = categoryNavContainer.querySelectorAll('li[data-category-type="m3u_group"]');
         categoryItems.forEach(item => {
             item.addEventListener('click', () => {
                 const groupName = decodeURIComponent(item.dataset.m3uGroupName);
@@ -450,9 +451,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.classList.add('active');
     
                 window.originalChannelsForCategory = allM3UChannelsGrouped[groupName] || [];
-                window.currentCategoryType = 'm3u'; 
-                document.getElementById('search-box').value = ''; 
-                renderChannels(window.originalChannelsForCategory, 'm3u', false);
+                window.currentCategoryType = 'm3u_group'; 
+                if(searchInput) searchInput.value = ''; 
+                renderChannels(window.originalChannelsForCategory, 'm3u_group', false);
+                updateBreadcrumbs('m3u_group', groupName);
     
                 if (window.innerWidth <= 768 && categoriesSidebar && categoriesSidebar.classList.contains('open')) {
                     categoriesSidebar.classList.remove('open');
@@ -466,13 +468,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    async function handleCategoryClick(categoryId, categoryType, categoryName) { // Handles Xtream category clicks
-        const channelsContainer = document.getElementById('channels-container');
-        showLoadingSpinner(channelsContainer, `Loading ${categoryName}...`); 
+    async function handleCategoryClick(categoryId, categoryType, categoryName) { 
+        const channelGridContainer = document.getElementById('channel-grid-container');
+        showLoadingSpinner(channelGridContainer, `Loading ${categoryName}...`); 
+        updateBreadcrumbs(categoryType, categoryName); 
 
-        const categoryItems = document.querySelectorAll('#categories-container li');
+        const categoryItems = document.querySelectorAll('#category-nav li'); 
         categoryItems.forEach(item => item.classList.remove('active'));
-        const activeCategoryElement = document.querySelector(`#categories-container li[data-category-id="${categoryId}"][data-category-type="${categoryType}"]`);
+        const activeCategoryElement = document.querySelector(`#category-nav li[data-category-id="${categoryId}"][data-category-type="${categoryType}"]`);
         if (activeCategoryElement) {
             activeCategoryElement.classList.add('active');
         }
@@ -481,11 +484,11 @@ document.addEventListener('DOMContentLoaded', () => {
             categoriesSidebar.classList.remove('open');
         }
 
-        const userInfo = window.currentUserInfo || JSON.parse(localStorage.getItem('xtream_user_info'));
-        const serverUrl = window.currentServerUrl || localStorage.getItem('xtream_last_login_url');
+        const userInfo = window.currentUserInfo;
+        const serverUrl = window.currentServerUrl;
 
         if (!userInfo || !serverUrl || !userInfo.username || !userInfo.password) {
-            showContentPlaceholder(channelsContainer, 'lock_person', 'Session error. Please log in again.');
+            showContentPlaceholder(channelGridContainer, 'lock_person', 'Session error. Please log in again.');
             window.originalChannelsForCategory = null; 
             window.currentCategoryType = null;
             return;
@@ -501,7 +504,7 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'vod': action = 'get_vod_streams'; params += `&category_id=${categoryId}`; break;
             case 'series': action = 'get_series_info'; params += `&series_id=${categoryId}`; break;
             default:
-                showContentPlaceholder(channelsContainer, 'error_outline', 'Unknown category type.');
+                showContentPlaceholder(channelGridContainer, 'error_outline', 'Unknown category type.');
                 window.originalChannelsForCategory = null; 
                 window.currentCategoryType = null;
                 return;
@@ -526,357 +529,422 @@ document.addEventListener('DOMContentLoaded', () => {
             
             window.originalChannelsForCategory = data; 
             window.currentCategoryType = categoryType;  
-            const searchBox = document.getElementById('search-box');
-            if (searchBox) searchBox.value = ''; 
+            if(searchInput) searchInput.value = ''; 
 
             renderChannels(data, categoryType, false); 
 
         } catch (error) {
             console.error(`Failed to fetch content for ${categoryName}:`, error);
-            showContentPlaceholder(channelsContainer, 'signal_disconnected', `Error loading: ${error.message || 'Check connection.'}`);
+            showContentPlaceholder(channelGridContainer, 'signal_disconnected', `Error loading: ${error.message || 'Check connection.'}`);
             window.originalChannelsForCategory = null; 
             window.currentCategoryType = null;
         }
     }
 
     function renderChannels(items, categoryType, isSearchResult = false) {
-        const channelsContainer = document.getElementById('channels-container');
-        channelsContainer.innerHTML = ''; 
-
+        const channelGridContainer = document.getElementById('channel-grid-container'); 
+        if (!channelGridContainer) {
+            console.error("#channel-grid-container not found!");
+            return;
+        }
+        channelGridContainer.innerHTML = ''; 
+    
         if (!items || (Array.isArray(items) && items.length === 0)) {
             if (categoryType === 'series' && items && typeof items === 'object' && items.info) {
             } else {
-                let message = isSearchResult ? "No results match your search." : (categoryType === 'm3u' ? "No channels in this M3U group." : "No items found in this category.");
+                let message = isSearchResult ? "No results match your search." : 
+                              (categoryType === 'm3u' || categoryType === 'm3u_group' ? "No channels in this M3U group." : "No items found in this category.");
                 let icon = isSearchResult ? "search_off" : "sentiment_very_dissatisfied"; 
-                showContentPlaceholder(channelsContainer, icon, message);
+                showContentPlaceholder(channelGridContainer, icon, message);
                 return;
             }
         }
-
+    
         const grid = document.createElement('div');
-        grid.className = 'channels-grid';
-
+        grid.className = 'channels-grid'; 
+    
         if (categoryType === 'series' && typeof items === 'object' && !Array.isArray(items) && items.info) {
             const seriesInfo = items; 
             const card = document.createElement('div');
             card.className = 'channel-card series-info-card'; 
             let coverImg = seriesInfo.info.cover_big || seriesInfo.info.movie_image || './placeholder.png';
             card.innerHTML = `
-                <img src="${coverImg}" alt="${seriesInfo.info.name || 'Series Cover'}" onerror="this.onerror=null;this.src='./placeholder.png';">
-                <div class="card-body">
-                    <h3>${seriesInfo.info.name || 'N/A'}</h3>
-                    <p><strong>Released:</strong> ${seriesInfo.info.releasedate || 'N/A'}</p>
-                    <p><strong>Director:</strong> ${seriesInfo.info.director || 'N/A'}</p>
-                    <p><strong>Cast:</strong> ${seriesInfo.info.cast || 'N/A'}</p>
-                    <p class="plot"><strong>Plot:</strong> ${seriesInfo.info.plot || 'N/A'}</p>
-                    ${seriesInfo.info.youtube_trailer ? `<p><a href="https://www.youtube.com/watch?v=${seriesInfo.info.youtube_trailer}" target="_blank">Watch Trailer</a></p>` : ''}
+                <div class="channel-card-thumbnail-container" style="width: 200px; height: 300px; padding-top: 0; flex-shrink: 0;"> 
+                    <img src="${coverImg}" alt="${seriesInfo.info.name || 'Series Cover'}" onerror="this.onerror=null;this.src='./placeholder.png';">
+                </div>
+                <div class="channel-card-body">
+                    <h3 class="channel-card-title">${seriesInfo.info.name || 'N/A'}</h3>
+                    <p class="channel-card-info"><strong>Released:</strong> ${seriesInfo.info.releasedate || 'N/A'}</p>
+                    <p class="channel-card-info"><strong>Director:</strong> ${seriesInfo.info.director || 'N/A'}</p>
+                    <p class="channel-card-info"><strong>Cast:</strong> ${seriesInfo.info.cast || 'N/A'}</p>
+                    <p class="plot channel-card-info">${seriesInfo.info.plot || 'N/A'}</p>
+                    ${seriesInfo.info.youtube_trailer ? `<p class="channel-card-info"><a href="https://www.youtube.com/watch?v=${seriesInfo.info.youtube_trailer}" target="_blank" rel="noopener noreferrer">Watch Trailer</a></p>` : ''}
                 </div>
             `;
             if (seriesInfo.episodes) {
-                let seasonsHtml = '<div class="series-seasons"><h4>Seasons:</h4><ul>';
+                let seasonsHtml = '<div class="series-seasons"><h4 class="channel-card-info">Seasons:</h4><ul>';
                 for (const seasonNum in seriesInfo.episodes) {
                     seasonsHtml += `<li>Season ${seasonNum} (${seriesInfo.episodes[seasonNum].length} episodes)</li>`;
                 }
                 seasonsHtml += '</ul></div>';
-                const cardBody = card.querySelector('.card-body');
-                if (cardBody) cardBody.innerHTML += seasonsHtml; else card.innerHTML += seasonsHtml;
+                const body = card.querySelector('.channel-card-body');
+                if (body) body.innerHTML += seasonsHtml; else card.innerHTML += seasonsHtml;
             }
             grid.appendChild(card);
         } else if (Array.isArray(items)) { 
             items.forEach(item => {
                 const card = document.createElement('div');
                 card.className = 'channel-card';
-                // For M3U, stream_id was generated during parse. For Xtream, it's from API.
-                card.dataset.streamId = item.stream_id || (categoryType === 'series' ? item.series_id : item.id); // Ensure M3U items have stream_id
-                card.dataset.streamType = categoryType; // 'live', 'vod', 'series', or 'm3u'
+                card.dataset.streamId = categoryType === 'm3u' || categoryType === 'm3u_group' ? item.stream_id : (categoryType === 'series' ? item.series_id : (item.stream_id || item.id));
+                card.dataset.streamType = categoryType === 'm3u_group' ? 'm3u' : categoryType;
                 card.dataset.streamName = encodeURIComponent(item.name || item.title || 'Unknown Stream');
-                // Add M3U specific data if available (used by handleStreamClick for M3U)
-                if (categoryType === 'm3u' && item.url) {
+                if (categoryType === 'm3u' || categoryType === 'm3u_group') {
                     card.dataset.m3uUrl = item.url; 
                 }
-
+    
                 let name = item.name || item.title || 'Unnamed Stream';
                 let iconUrl = item.logo || item.stream_icon || item.icon || item.icon_url || item.movie_image || item.cover || './placeholder.png';
                 
                 card.innerHTML = `
-                    <img src="${iconUrl}" alt="${name}" onerror="this.onerror=null;this.src='./placeholder.png';">
-                    <div class="card-body">
-                        <h4>${name}</h4>
-                        ${categoryType === 'vod' && item.rating_5based ? `<p>Rating: ${Number(item.rating_5based).toFixed(1)}/5</p>` : ''}
-                        ${categoryType === 'vod' && item.duration ? `<p>Duration: ${item.duration}</p>` : ''}
+                    <div class="channel-card-thumbnail-container">
+                        <img src="${iconUrl}" alt="${name}" onerror="this.onerror=null;this.src='./placeholder.png';">
+                    </div>
+                    <div class="channel-card-body">
+                        <h4 class="channel-card-title">${name}</h4>
+                        ${((categoryType === 'vod' || ((categoryType === 'm3u' || categoryType === 'm3u_group') && item.duration)) && item.rating_5based) ? `<p class="channel-card-info">Rating: ${Number(item.rating_5based).toFixed(1)}/5</p>` : ''}
+                        ${((categoryType === 'vod' || ((categoryType === 'm3u' || categoryType === 'm3u_group') && item.duration)) && item.duration && item.duration !== '-1') ? `<p class="channel-card-info">Duration: ${item.duration}</p>` : ''}
                     </div>
                 `;
                 card.addEventListener('click', () => handleStreamClick(card.dataset));
                 grid.appendChild(card);
             });
         }
-
-        channelsContainer.appendChild(grid);
+    
+        channelGridContainer.appendChild(grid);
         if (grid.childNodes.length === 0 && !(categoryType === 'series' && typeof items === 'object' && items.info)) {
-           let message = isSearchResult ? "No results match your search." : (categoryType === 'm3u' ? "No channels in this M3U group." : "No items found in this category.");
+           let message = isSearchResult ? "No results match your search." : (categoryType === 'm3u' || categoryType === 'm3u_group' ? "No channels in this M3U group." : "No items found in this category.");
            let icon = isSearchResult ? "search_off" : "sentiment_very_dissatisfied";
-           showContentPlaceholder(channelsContainer, icon, message);
+           showContentPlaceholder(channelGridContainer, icon, message);
         }
     }
 
-    function handleStreamClick(streamData) {
+    function updateBreadcrumbs(type, name) {
+        const breadcrumbsBar = document.getElementById('breadcrumbs-bar');
+        if (!breadcrumbsBar) return;
+    
+        let typeDisplay = '';
+        if (type) {
+            typeDisplay = type.toUpperCase().replace(/_/g, ' '); 
+            if (type === 'm3u' || type === 'm3u_group') typeDisplay = 'M3U Playlist';
+            else if (type === 'live') typeDisplay = 'Live TV';
+            else if (type === 'vod') typeDisplay = 'Movies'; 
+            else if (type === 'series') typeDisplay = 'TV Series';
+        }
+    
+        let breadcrumbHtml = `<a href="#" id="breadcrumb-home">Home</a>`;
+        if (typeDisplay) {
+            breadcrumbHtml += ` <span class="separator">&gt;</span> <span class="current-category-type">${typeDisplay}</span>`;
+        }
+        if (name) {
+            breadcrumbHtml += ` <span class="separator">&gt;</span> <span class="current-category-name">${name}</span>`;
+        }
+        breadcrumbsBar.innerHTML = breadcrumbHtml;
+        
+        const homeLink = document.getElementById('breadcrumb-home');
+        if (homeLink) {
+            homeLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                const channelsContainer = document.getElementById('channel-grid-container');
+                const categoriesContainer = document.getElementById('category-nav'); 
+                
+                if (channelsContainer) showContentPlaceholder(channelsContainer, 'tv_off', 'Select a category to browse.');
+                
+                if (window.xtreamCategories) { 
+                    renderCategories(window.xtreamCategories);
+                } else if (window.m3uChannels) { 
+                     displayM3UChannels(window.m3uChannels, "playlist"); 
+                } else {
+                     if (categoriesContainer) showContentPlaceholder(categoriesContainer, 'category', 'Load content via Login or M3U.');
+                }
+                if (document.getElementById('search-input')) document.getElementById('search-input').value = '';
+                updateBreadcrumbs(null, null); 
+                // No recursive call needed here. The updateBreadcrumbs already reset to Home.
+            });
+        }
+    }
+
+    async function handleStreamClick(streamData) {
         const decodedStreamName = decodeURIComponent(streamData.streamName);
         let streamUrlToPlay = '';
-        let isHlsStream = false;
-        let fullStreamInfo = {};
+        let streamTypeMime = ''; 
+    
+        if (playerViewModal) playerViewModal.style.display = 'flex';
+        if (playerStreamTitle) playerStreamTitle.textContent = `Now Playing: ${decodedStreamName}`;
     
         if (streamData.streamType === 'm3u') {
-            // M3U stream: URL is directly in the item, or should be retrieved from the stored m3uChannels/originalChannelsForCategory
-            const m3uList = window.originalChannelsForCategory || window.m3uChannels || [];
-            const m3uItem = m3uList.find(ch => String(ch.stream_id) === String(streamData.streamId));
-            
-            if (!m3uItem || !m3uItem.url) {
-                displayMessage('Error: M3U Stream URL not found.', 'error');
-                console.error("M3U stream URL not found for ID:", streamData.streamId);
+            streamUrlToPlay = streamData.m3uUrl; 
+            if (!streamUrlToPlay) {
+                displayUIMessage('Error: M3U Stream URL not found in card data.', 'error', playerStreamTitle); 
+                if (playerViewModal) playerViewModal.style.display = 'none';
                 return;
             }
-            streamUrlToPlay = m3uItem.url;
-            isHlsStream = streamUrlToPlay.toLowerCase().includes('.m3u8');
-            fullStreamInfo = { type: 'm3u', name: decodedStreamName, source: streamUrlToPlay, streamId: streamData.streamId, isHls: isHlsStream, originalData: m3uItem };
-            console.log("M3U Stream URL:", streamUrlToPlay);
-        } else { // Xtream Codes stream
-            const userInfo = window.currentUserInfo || JSON.parse(localStorage.getItem('xtream_user_info'));
-            let serverUrl = window.currentServerUrl || localStorage.getItem('xtream_last_login_url');
-        
-            if (!userInfo || !serverUrl || !userInfo.username || !userInfo.password) {
-                displayMessage('Cannot play stream: User session or server info is missing. Please log in again.', 'error');
-                console.error('User session or server info missing for stream URL construction.');
+            if (streamUrlToPlay.toLowerCase().includes('.m3u8')) {
+                streamTypeMime = 'application/x-mpegURL';
+            } else if (streamUrlToPlay.toLowerCase().endsWith('.mp4')) {
+                streamTypeMime = 'video/mp4';
+            } else if (streamUrlToPlay.toLowerCase().endsWith('.ts')) {
+                streamTypeMime = 'video/mp2t';
+            } else {
+                console.warn("Unknown M3U stream type, letting Video.js attempt detection:", streamUrlToPlay);
+            }
+        } else { 
+            const userInfo = window.currentUserInfo;
+            const serverUrl = window.currentServerUrl;
+            if (!userInfo || !serverUrl) {
+                displayUIMessage('Session error. Please log in again.', 'error', playerStreamTitle);
+                if (playerViewModal) playerViewModal.style.display = 'none';
                 return;
             }
-            
-            serverUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
-            const username = userInfo.username;
-            const password = userInfo.password;
+            const { username, password } = userInfo;
             const streamId = streamData.streamId;
+            const currentServerUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
     
             switch (streamData.streamType) {
                 case 'live':
-                    streamUrlToPlay = `${serverUrl}/live/${username}/${password}/${streamId}.ts`;
-                    isHlsStream = true; 
-                    fullStreamInfo = { type: 'live', name: decodedStreamName, source: streamUrlToPlay, streamId: streamId, originalData: streamData };
+                    streamUrlToPlay = `${currentServerUrl}/live/${username}/${password}/${streamId}.ts`;
+                    streamTypeMime = 'application/x-mpegURL'; 
                     break;
                 case 'vod':
-                    let containerExtension = 'mp4'; 
+                    let containerExtension = 'mp4';
                     if (window.originalChannelsForCategory && Array.isArray(window.originalChannelsForCategory)) {
-                        const vodItem = window.originalChannelsForCategory.find(item => (String(item.stream_id) === String(streamId) || String(item.id) === String(streamId)));
+                        const vodItem = window.originalChannelsForCategory.find(item => String(item.stream_id) === String(streamId));
                         if (vodItem && vodItem.container_extension) {
                             containerExtension = vodItem.container_extension.toLowerCase();
                         }
                     }
-                    streamUrlToPlay = `${serverUrl}/movie/${username}/${password}/${streamId}.${containerExtension}`;
-                    isHlsStream = containerExtension === 'm3u8';
-                    fullStreamInfo = { type: 'vod', name: decodedStreamName, source: streamUrlToPlay, streamId: streamId, containerExtension: containerExtension, isHls: isHlsStream, originalData: streamData };
+                    streamUrlToPlay = `${currentServerUrl}/movie/${username}/${password}/${streamId}.${containerExtension}`;
+                    if (containerExtension === 'm3u8') streamTypeMime = 'application/x-mpegURL';
+                    else if (containerExtension === 'mp4') streamTypeMime = 'video/mp4';
+                    else if (containerExtension === 'mkv') streamTypeMime = 'video/x-matroska';
                     break;
-                case 'series': // Should not reach here if series card itself is not made clickable for direct play
-                    console.log(`Series selected: ${decodedStreamName} (ID: ${streamId}). Episode player not implemented.`);
-                    displayMessage(`Series selected: ${decodedStreamName}. To play, select an episode (not yet implemented).`, 'success');
-                    if (playerModal) playerModal.classList.remove('visible'); 
-                    return; 
                 default:
-                    console.error('Unknown stream type for player:', streamData.streamType);
-                    displayMessage('Cannot play stream: Unknown stream type.', 'error');
+                    displayUIMessage('Unknown stream type.', 'error', playerStreamTitle);
+                    if (playerViewModal) playerViewModal.style.display = 'none';
                     return;
             }
         }
     
         if (!streamUrlToPlay) {
-            displayMessage('Error: Stream URL could not be determined.', 'error');
-            console.error("Stream URL is empty for stream:", decodedStreamName, streamData);
+            console.error("Stream URL could not be determined.");
+            displayUIMessage("Error: Could not determine stream URL.", "error", playerStreamTitle);
+            if (playerViewModal) playerViewModal.style.display = 'none';
             return;
         }
         
-        console.log('Player Data (common):', fullStreamInfo);
+        console.log(`Attempting to play: ${streamUrlToPlay} (Type: ${streamTypeMime || 'auto'})`);
     
-        if (playerModal) playerModal.classList.add('visible');
-        if (playerStreamInfo) playerStreamInfo.textContent = decodedStreamName;
+        if (!mainVideoPlayerElement) {
+            console.error("Video element #main-video-player not found!");
+            if (playerViewModal) playerViewModal.style.display = 'none';
+            return;
+        }
     
-        if (hls) { hls.destroy(); hls = null; }
-        videoPlayer.removeAttribute('src'); 
-        videoPlayer.load(); 
-    
-        if (isHlsStream) { // This flag is now correctly set for both M3U HLS and Xtream HLS
-            if (Hls.isSupported()) {
-                console.log("HLS.js is supported. Initializing HLS.js player for HLS stream:", streamUrlToPlay);
-                hls = new Hls({
-                    debug: true, 
-                    xhrSetup: function(xhr, url) {
-                        try {
-                            xhr.withCredentials = true; 
-                            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                            console.log(`[HLS.js XHR Setup] withCredentials set for URL: ${url}`);
-                        } catch (e) {
-                            console.error("[HLS.js XHR Setup] Error setting XHR properties:", e);
-                        }
-                    }
-                });
-                hls.loadSource(streamUrlToPlay);
-                hls.attachMedia(videoPlayer);
-                hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                    console.log("Manifest parsed. Attempting to play HLS stream...");
-                    videoPlayer.play().catch(error => {
-                        console.error("Error trying to play video with HLS.js:", error);
-                        displayMessage(`Error playing ${decodedStreamName}: ${error.message}`, 'error');
-                    });
-                });
-                hls.on(Hls.Events.ERROR, function(event, data) {
-                    console.error('HLS.js Error:', data);
-                    if (data.fatal) {
-                        switch(data.type) {
-                            case Hls.ErrorTypes.NETWORK_ERROR:
-                                displayMessage(`Network error playing ${decodedStreamName}. Check connection or stream.`, 'error');
-                                break;
-                            case Hls.ErrorTypes.MEDIA_ERROR:
-                                 displayMessage(`Media error playing ${decodedStreamName}. Stream may be corrupt or incompatible.`, 'error');
-                                break;
-                            default:
-                                displayMessage(`Error playing ${decodedStreamName}: ${data.details || 'Unknown HLS error'}`, 'error');
-                                if(hls) hls.destroy(); hls = null; 
-                                break;
-                        }
-                    } else if (data.details === 'bufferStalledError') {
-                        displayMessage(`Buffering: ${decodedStreamName}...`, 'success');
-                    } else if (data.response && (data.response.code === 403 || data.response.code === 401)) {
-                        displayMessage(`Access denied for ${decodedStreamName}. Check credentials or stream permissions.`, 'error');
-                    }
-                });
-            } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) { 
-                console.log("Native HLS playback is supported. Using native player for HLS stream:", streamUrlToPlay);
-                videoPlayer.src = streamUrlToPlay;
-                const playPromise = videoPlayer.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.error("Error trying to play HLS video natively:", error);
-                        displayMessage(`Error playing ${decodedStreamName}: ${error.message}`, 'error');
-                    });
-                }
-                videoPlayer.addEventListener('error', function(e) {
-                    console.error('Native HLS player error:', e);
-                    displayMessage(`Error playing ${decodedStreamName}: Native player error.`, 'error');
-                }, { once: true });
-            } else {
-                console.error("HLS is not supported for this HLS stream.");
-                displayMessage("Your browser does not support HLS video playback.", "error");
-                if (playerModal) playerModal.classList.remove('visible');
-            }
-        } else { // Progressive download (e.g., MP4, MKV VOD from M3U or Xtream)
-            console.log("Progressive download stream. Setting video src directly:", streamUrlToPlay);
-            const videoFormat = `video/${fullStreamInfo.containerExtension || 'mp4'}`; // Use containerExtension from fullStreamInfo
-            if (videoPlayer.canPlayType(videoFormat)) {
-                videoPlayer.src = streamUrlToPlay;
-                const playPromise = videoPlayer.play(); 
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.error("Error trying to play progressive download video:", error);
-                        displayMessage(`Error playing ${decodedStreamName}: ${error.message}`, 'error');
-                    });
-                }
-                videoPlayer.addEventListener('error', function(e) {
-                    console.error('Native player error for progressive download:', e);
-                    displayMessage(`Error playing ${decodedStreamName}: Player error.`, 'error');
-                }, { once: true });
-            } else {
-                console.error(`Browser cannot play video format: ${fullStreamInfo.containerExtension}`);
-                displayMessage(`Your browser does not support the .${fullStreamInfo.containerExtension} video format.`, "error");
-                if (playerModal) playerModal.classList.remove('visible');
-            }
+        if (videoJsPlayer) {
+            videoJsPlayer.dispose();
+            videoJsPlayer = null;
         }
         
-        const allCards = document.querySelectorAll('.channel-card');
-        allCards.forEach(card => card.classList.remove('active-stream'));
-        const clickedCard = document.querySelector(`.channel-card[data-stream-id='${streamData.streamId}'][data-stream-type='${streamData.streamType}']`);
+        if (typeof videojs === 'undefined') {
+            console.error("Video.js library is not loaded!");
+            displayUIMessage("Error: Video player library not loaded.", "error", playerStreamTitle);
+            if (playerViewModal) playerViewModal.style.display = 'none';
+            return;
+        }
+    
+        const videoJsOptions = {
+            autoplay: true,
+            controls: true,
+            responsive: true, 
+            fluid: true, 
+            sources: [{ src: streamUrlToPlay, type: streamTypeMime }]
+        };
+    
+        videoJsPlayer = videojs(mainVideoPlayerElement, videoJsOptions, function onPlayerReady() {
+            console.log('Video.js Player is ready.');
+            this.on('error', function() {
+                const error = this.error();
+                console.error('Video.js Error:', error);
+                const errorMsg = error && error.message ? error.message : 'Unknown player error';
+                if(playerStreamTitle) playerStreamTitle.textContent = `Error: ${errorMsg}`;
+            });
+    
+            this.on('loadedmetadata', function() {
+                console.log('Metadata loaded. Video dimensions:', this.videoWidth(), this.videoHeight());
+            });
+        });
+        
+        document.querySelectorAll('#channel-grid-container .channel-card').forEach(card => card.classList.remove('active-stream'));
+        const clickedCard = document.querySelector(`#channel-grid-container .channel-card[data-stream-id='${streamData.streamId}'][data-stream-type='${streamData.streamType}']`);
         if (clickedCard) {
             clickedCard.classList.add('active-stream');
         }
     }
     
-    function closePlayer() {
-        if (playerModal) playerModal.classList.remove('visible');
-        if (videoPlayer) {
-            videoPlayer.pause();
-            videoPlayer.removeAttribute('src'); 
-            videoPlayer.load(); 
+    function closePlayer() { 
+        if (playerViewModal) playerViewModal.style.display = 'none'; 
+        if (videoJsPlayer) {
+            videoJsPlayer.pause(); 
+            videoJsPlayer.dispose();
+            videoJsPlayer = null;
         }
-        if (hls) {
-            hls.destroy();
-            hls = null;
-        }
-        if (playerStreamInfo) playerStreamInfo.textContent = '';
-        
-        const allCards = document.querySelectorAll('.channel-card.active-stream');
-        allCards.forEach(card => card.classList.remove('active-stream'));
-        clearMessages(); 
+        if (playerStreamTitle) playerStreamTitle.textContent = 'Now Playing: ...'; 
+        document.querySelectorAll('#channel-grid-container .channel-card.active-stream').forEach(card => card.classList.remove('active-stream'));
+        clearUIMessages(loginMessageArea); 
     }
-
-    function handleSearch() {
-        const searchBox = document.getElementById('search-box');
-        const searchTerm = searchBox.value.toLowerCase().trim();
     
-        if (!window.originalChannelsForCategory) {
+    function handleSearch() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        const currentChannels = window.originalChannelsForCategory; 
+        const currentType = window.currentCategoryType;
+    
+        if (!currentChannels) {
             return; 
         }
         
-        if (window.currentCategoryType === 'series' && 
-            typeof window.originalChannelsForCategory === 'object' && 
-            !Array.isArray(window.originalChannelsForCategory) && 
-            window.originalChannelsForCategory.info) {
-            
+        if (currentType === 'series' && typeof currentChannels === 'object' && !Array.isArray(currentChannels) && currentChannels.info) {
             if (searchTerm) {
-                displayMessage("Search applies to lists of channels/VODs, not the detailed series view. Clear search or select a list category.", "error");
+                displayUIMessage("Search applies to lists of channels/VODs, not the detailed series view.", "error", loginMessageArea); 
             } else {
-                clearMessages(); 
+                clearUIMessages(loginMessageArea); 
             }
             return; 
         }
     
         if (!searchTerm) {
-            renderChannels(window.originalChannelsForCategory, window.currentCategoryType, false); 
+            renderChannels(currentChannels, currentType, false); 
             return;
         }
     
-        if (!Array.isArray(window.originalChannelsForCategory)) {
+        if (!Array.isArray(currentChannels)) {
             console.warn('Original data for category is not an array, cannot filter:', window.originalChannelsForCategory);
-            renderChannels([], window.currentCategoryType, true); 
+            renderChannels([], currentType, true); 
             return;
         }
     
-        const filteredItems = window.originalChannelsForCategory.filter(item => {
+        const filteredItems = currentChannels.filter(item => {
             const itemName = (item.name || item.title || '').toLowerCase();
             return itemName.includes(searchTerm);
         });
     
-        renderChannels(filteredItems, window.currentCategoryType, true); 
+        renderChannels(filteredItems, currentType, true); 
     }
 
-    const logoutButton = document.getElementById('logout-button');
-    if (logoutButton) {
-        logoutButton.addEventListener('click', () => {
+    const logoutButtonMain = document.getElementById('logout-button-main');
+    if (logoutButtonMain) {
+        logoutButtonMain.addEventListener('click', () => {
             closePlayer(); 
             localStorage.clear();
             window.currentUserInfo = null; 
             window.currentServerUrl = null;
             window.originalChannelsForCategory = null;
             window.currentCategoryType = null;
-            window.m3uChannels = null; // Clear M3U data on logout
-            const searchBox = document.getElementById('search-box');
-            if (searchBox) searchBox.value = '';
+            window.m3uChannels = null;
+            if (searchInput) searchInput.value = '';
 
             console.log('Session cleared. Logged out.');
-            if (mainAppSection) mainAppSection.style.display = 'none';
-            if (loginSection) loginSection.style.display = 'block';
-            serverUrlInput.value = ''; usernameInput.value = ''; passwordInput.value = '';
-            clearMessages();
-            const channelsContainer = document.getElementById('channels-container');
-            if(channelsContainer) showContentPlaceholder(channelsContainer, 'tv_off', 'Select a category to see content.');
-            const categoriesContainer = document.getElementById('categories-container');
-            if(categoriesContainer) showContentPlaceholder(categoriesContainer, 'login', 'Login to load categories.');
+            mainAppView.style.display = 'none';
+            loginView.style.display = 'flex';
+            if (serverUrlInput) serverUrlInput.value = ''; 
+            if (usernameInput) usernameInput.value = ''; 
+            if (passwordInput) passwordInput.value = '';
+            clearUIMessages(loginMessageArea);
+            
+            const channelGridContainer = document.getElementById('channel-grid-container');
+            if(channelGridContainer) showContentPlaceholder(channelGridContainer, 'tv_off', 'Select a category to see content.');
+            const categoryNav = document.getElementById('category-nav');
+            if(categoryNav) showContentPlaceholder(categoryNav, 'login', 'Login or upload M3U to load categories.');
 
-
-            displayMessage('You have been logged out.', 'success');
+            displayUIMessage('You have been logged out.', 'success', loginMessageArea);
+            updateBreadcrumbs(null, null); 
         });
     }
+
+    function parseM3U(m3uString) {
+        const lines = m3uString.split(/\r\n|\n|\r/);
+        const channels = [];
+        let currentChannel = null;
+        let streamIdCounter = 0;
+    
+        const firstNonEmptyLine = lines.find(line => line.trim() !== '');
+        if (!firstNonEmptyLine || !firstNonEmptyLine.trim().startsWith('#EXTM3U')) {
+            console.warn('M3U file does not start with #EXTM3U. Attempting to parse anyway.');
+        }
+    
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (trimmedLine.startsWith('#EXTINF:')) {
+                if (currentChannel) { 
+                    console.warn("Found new #EXTINF before a URL for the previous one. Discarding previous channel info:", currentChannel);
+                }
+                currentChannel = { attributes: {} };
+                const metadata = trimmedLine.substring(8).trim(); 
+                const lastCommaIndex = metadata.lastIndexOf(',');
+                
+                let infoPart = metadata;
+                if (lastCommaIndex !== -1) {
+                    currentChannel.name = metadata.substring(lastCommaIndex + 1).trim();
+                    infoPart = metadata.substring(0, lastCommaIndex);
+                } else {
+                    currentChannel.name = infoPart.trim();
+                    infoPart = ""; 
+                }
+    
+                const durationMatch = infoPart.match(/^(-?\d+)/);
+                if (durationMatch) {
+                    currentChannel.duration = parseInt(durationMatch[0], 10);
+                    infoPart = infoPart.substring(durationMatch[0].length).trim(); 
+                } else {
+                    currentChannel.duration = -1; 
+                }
+    
+                const attributeRegex = /(\S+?)="([^"]*)"/g;
+                let match;
+                while ((match = attributeRegex.exec(infoPart)) !== null) {
+                    const key = match[1].toLowerCase().replace('-', ''); 
+                    currentChannel.attributes[key] = match[2];
+                }
+    
+                currentChannel.logo = currentChannel.attributes.tvglogo || currentChannel.attributes.logo;
+                currentChannel.group = currentChannel.attributes.grouptitle;
+                currentChannel.tvgId = currentChannel.attributes.tvgid;
+                currentChannel.tvgName = currentChannel.attributes.tvgname;
+    
+                if (currentChannel.name && /^\d+$/.test(currentChannel.name) && currentChannel.tvgName) {
+                    currentChannel.name = currentChannel.tvgName;
+                }
+    
+            } else if (currentChannel && trimmedLine && !trimmedLine.startsWith('#')) {
+                currentChannel.url = trimmedLine;
+                currentChannel.stream_id = `m3u_${++streamIdCounter}_${Date.now()}`; 
+                channels.push(currentChannel);
+                currentChannel = null; 
+            } else if (trimmedLine && !trimmedLine.startsWith('#EXTM3U') && !trimmedLine.startsWith('#')) {
+                 if (!currentChannel) { 
+                    channels.push({
+                        name: `Unknown Channel ${++streamIdCounter}`,
+                        url: trimmedLine,
+                        stream_id: `m3u_${streamIdCounter}_${Date.now()}`,
+                        attributes: {},
+                        duration: -1,
+                        group: 'Unknown Group'
+                    });
+                }
+            }
+        }
+        if (channels.length === 0 && !lines.some(line => line.trim().startsWith('#EXTINF'))) {
+             throw new Error("Invalid M3U file: No channel data found (#EXTINF lines).");
+        }
+        return channels;
+    }
+
 });

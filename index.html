@@ -3,86 +3,139 @@
 <head>
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xtream IPTV Web App</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-    <!-- Material Symbols Rounded -->
+    <title>Futuristic IPTV Player</title> 
+
+    <!-- Google Fonts (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Material Symbols (Rounded) -->
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
-    <!-- HLS.js Library -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+    <!-- Video.js CSS -->
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" /> 
+    
+    <!-- Main Stylesheet (new or cleared) -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <section id="login-section"> 
-        <div class="login-container">
-            <h1>Welcome Back</h1>
-            <p>Login to access your Xtream IPTV channels.</p>
-            <form id="login-form">
-                <div class="input-group">
-                    <label for="server-url">Server URL (e.g., http://my.iptv.server:8080)</label>
-                    <input type="text" id="server-url" name="server-url" required placeholder="http://your.server.url:port">
-                </div>
-                <div class="input-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required placeholder="Your Username">
-                </div>
-                <div class="input-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required placeholder="Your Password">
-                </div>
-                <button type="submit" id="login-button">Login</button>
-                <div id="message-area" class="message-area"></div>
-            </form>
-        </div>
-    </section>
+    <div id="app-container">
 
-    <section id="main-app-section" style="display: none;"> 
-        <header class="app-header">
-            <button id="category-toggle-button" class="material-symbols-rounded mobile-only">menu</button>
-            <h1>Xtream IPTV Player</h1>
-            <div class="header-controls">
-                <div class="search-wrapper"> 
-                    <span class="material-symbols-rounded search-icon">search</span>
-                    <input type="search" id="search-box" placeholder="Search channels...">
+        <!-- Login View (Initially visible, hidden after login) -->
+        <section id="login-view" class="app-view">
+            <div class="login-box">
+                <h1 class="app-title-login">STREAM<span class="title-accent">X</span></h1>
+                <p class="login-tagline">Enter the Future of Streaming</p>
+                <form id="login-form">
+                    <div class="input-group">
+                        <span class="material-symbols-rounded">dns</span>
+                        <input type="text" id="server-url" required placeholder="Server URL (e.g., http://my.server:port)">
+                    </div>
+                    <div class="input-group">
+                        <span class="material-symbols-rounded">person</span>
+                        <input type="text" id="username" required placeholder="Username">
+                    </div>
+                    <div class="input-group">
+                        <span class="material-symbols-rounded">password</span>
+                        <input type="password" id="password" required placeholder="Password">
+                    </div>
+                    <button type="submit" id="login-button" class="cta-button">
+                        <span class="material-symbols-rounded">login</span> Connect
+                    </button>
+                </form>
+                <div class="login-alternative">
+                    <p>Or load your own playlist:</p>
+                    <button id="m3u-upload-trigger-button" class="secondary-button">
+                        <span class="material-symbols-rounded">playlist_add</span> Upload M3U File
+                    </button>
                 </div>
-                
-                <button id="upload-m3u-button" title="Upload M3U/M3U8 Playlist"> 
-                    <span class="material-symbols-rounded">playlist_add</span> M3U
-                </button>
-
-                <button id="logout-button" title="Logout from Xtream Account"> 
-                    <span class="material-symbols-rounded">logout</span> Logout
-                </button>
+                <div id="login-message-area" class="message-area"></div>
             </div>
-        </header>
-        <div class="app-body">
-            <aside id="categories-sidebar">
-                <h3>Categories</h3> 
-                <div id="categories-container">
-                    <p>Loading categories...</p>
+        </section>
+
+        <!-- Main App View (Initially hidden, shown after login/M3U load) -->
+        <main id="main-app-view" class="app-view" style="display: none;">
+            <aside id="sidebar">
+                <div class="sidebar-header">
+                    <h2 class="app-title-main">STREAM<span class="title-accent">X</span></h2>
+                    <button id="sidebar-toggle-mobile" class="icon-button mobile-only" title="Toggle Menu">
+                        <span class="material-symbols-rounded">menu</span>
+                    </button>
+                </div>
+                <nav id="category-nav">
+                    <!-- Categories will be loaded here -->
+                    <div class="nav-placeholder">Loading Categories...</div>
+                </nav>
+                <div class="sidebar-footer">
+                    <button id="settings-button" class="icon-button" title="Settings">
+                        <span class="material-symbols-rounded">settings</span>
+                    </button>
+                    <button id="logout-button-main" class="icon-button" title="Logout">
+                        <span class="material-symbols-rounded">logout</span>
+                    </button>
+                     <button id="m3u-upload-sidebar-button" class="icon-button" title="Upload M3U">
+                        <span class="material-symbols-rounded">file_upload</span>
+                    </button>
                 </div>
             </aside>
-            <main id="channels-content">
-                <h2>Channels</h2>
-                <div id="channels-container">
-                    <p>Select a category to see channels.</p>
-                </div>
-            </main>
-        </div>
-    </section>
 
-    <!-- Player Modal -->
-    <div id="player-modal" class="player-modal-overlay"> <!-- Removed style="display: none;" to rely on .visible class -->
-        <div class="player-container"> 
-            <button id="close-player-button" class="close-player-btn">
-                <span class="material-symbols-rounded">close</span>
-            </button>
-            <video id="video-player" controls width="100%"></video>
-            <div id="player-stream-info" class="player-stream-name"></div>
+            <section id="content-area">
+                <header id="content-header">
+                    <div class="search-container">
+                        <span class="material-symbols-rounded">search</span>
+                        <input type="search" id="search-input" placeholder="Search content...">
+                    </div>
+                    <div id="user-profile-area">
+                        <!-- User info / Theme toggle might go here -->
+                    </div>
+                </header>
+                <div id="breadcrumbs-bar">
+                    <!-- Breadcrumbs or current category display -->
+                </div>
+                <div id="channel-grid-container">
+                    <!-- Channel/VOD cards will be loaded here -->
+                    <div class="grid-placeholder">Select a category to browse.</div>
+                </div>
+                <div id="recently-watched-container">
+                    <!-- Recently watched items -->
+                </div>
+                <div id="media-info-view-container">
+                    <!-- Detailed media info display -->
+                </div>
+            </section>
+        </main>
+
+        <!-- Player View (Modal Overlay) -->
+        <div id="player-view-modal" class="modal-overlay"> <!-- display:none removed -->
+            <div class="player-modal-content">
+                <video id="main-video-player" class="video-js vjs-big-play-centered" playsinline controls preload="auto" width="640" height="360">
+                    <p class="vjs-no-js">
+                        To view this video please enable JavaScript, and consider upgrading to a
+                        web browser that <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                    </p>
+                </video>
+                <button id="player-close-button" class="icon-button player-close" title="Close Player">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+                <div id="player-stream-title">Now Playing: ...</div>
+            </div>
         </div>
+
+        <!-- Settings Modal (Example, initially hidden) -->
+        <div id="settings-modal" class="modal-overlay" style="display: none;">
+            <div class="settings-modal-content">
+                <h3>Settings</h3>
+                <!-- Theme toggles, other settings -->
+                <button id="settings-close-button" class="secondary-button">Close</button>
+            </div>
+        </div>
+        
+        <!-- Hidden file input for M3U -->
+        <input type="file" id="m3u-file-input-main" accept=".m3u,.m3u8" style="display: none;">
     </div>
 
-    <input type="file" id="m3u-file-input" accept=".m3u,.m3u8" style="display: none;">
-
-    <script src="script.js"></script>
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script> 
+    <script src="script.js"></script> 
 </body>
 </html>
