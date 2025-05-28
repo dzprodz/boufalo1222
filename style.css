@@ -1,27 +1,27 @@
-/* style.css - Implementing New UI Shell - Detailed Styling */
+/* style.css - Reviewing and Refining Transitions */
 
 :root {
     /* Design Concept - Color Palette */
     --color-bg-deep: #0A0F1E;
-    --color-bg-primary: #101425; /* Main background for content area */
-    --color-surface: #1A1D36;   /* Sidebar, cards, modals base */
-    --color-surface-rgb: 26, 29, 54; /* RGB for rgba() */
-    --color-surface-frost: rgba(var(--color-surface-rgb), 0.75); /* For frosted glass effect base */
-    --color-surface-header: rgba(20, 24, 48, 0.85); /* Slightly different for sticky header */
+    --color-bg-primary: #101425; 
+    --color-surface: #1A1D36;   
+    --color-surface-rgb: 26, 29, 54; 
+    --color-surface-frost: rgba(var(--color-surface-rgb), 0.75); 
+    --color-surface-header: rgba(20, 24, 48, 0.85); 
 
-    --color-primary-accent: #00AFFF; /* Electric Blue */
-    --color-primary-accent-rgb: 0,175,255; /* RGB for rgba glow */
-    --color-secondary-accent: #7F00FF; /* Neon Violet */
-    --color-secondary-accent-rgb: 127,0,255; /* RGB for rgba glow */
-    --color-tertiary-accent: #00F2EA; /* Teal - for highlights */
+    --color-primary-accent: #00AFFF; 
+    --color-primary-accent-rgb: 0,175,255; 
+    --color-secondary-accent: #7F00FF; 
+    --color-secondary-accent-rgb: 127,0,255; 
+    --color-tertiary-accent: #00F2EA; 
 
-    --color-text-primary: #E5EFFF; /* Bright, near-white for headings */
-    --color-text-body: #D0D8E8;    /* Off-white for body */
-    --color-text-muted: #808A9F;   /* Lighter gray for secondary info */
-    --color-text-muted-rgb: 128, 138, 159; /* For Video.js slider */
+    --color-text-primary: #E5EFFF; 
+    --color-text-body: #D0D8E8;    
+    --color-text-muted: #808A9F;   
+    --color-text-muted-rgb: 128, 138, 159; 
     --color-text-placeholder: #606A7F;
 
-    --color-border: #2A2F55; /* Subtle border for elements */
+    --color-border: #2A2F55; 
     --color-border-accent: var(--color-primary-accent);
 
     /* Fonts */
@@ -55,10 +55,10 @@
     --shadow-glow-accent: 0 0 15px rgba(var(--color-primary-accent-rgb), 0.4);
     --shadow-glow-accent-secondary: 0 0 15px rgba(var(--color-secondary-accent-rgb), 0.4);
 
-
     /* Transitions */
-    --transition-fast: 0.2s ease;
-    --transition-normal: 0.3s ease;
+    --transition-fast: 0.15s ease-out; 
+    --transition-normal: 0.25s ease-out; 
+    --transition-slow: 0.4s ease-in-out; 
 }
 
 * {
@@ -137,7 +137,7 @@ body {
 .input-group {
     display: flex;
     align-items: center;
-    background-color: rgba(var(--color-surface-rgb), 0.5); /* Semi-transparent surface for inputs */
+    background-color: rgba(var(--color-surface-rgb), 0.5); 
     border-radius: var(--border-radius-md);
     margin-bottom: var(--spacing-lg);
     padding: 0 var(--spacing-md);
@@ -165,6 +165,19 @@ body {
     border-color: var(--color-primary-accent);
     box-shadow: 0 0 10px rgba(var(--color-primary-accent-rgb), 0.5);
 }
+
+.cta-button, .secondary-button, .icon-button,
+#upload-m3u-button, 
+#category-toggle-button, 
+.sidebar-footer .icon-button,
+#player-close-button,
+#settings-close-button {
+    transition: background-color var(--transition-fast), color var(--transition-fast), 
+                transform var(--transition-fast), box-shadow var(--transition-fast), 
+                opacity var(--transition-fast), outline-offset var(--transition-fast);
+}
+
+
 .cta-button {
     display: inline-flex;
     align-items: center;
@@ -179,12 +192,17 @@ body {
     border-radius: var(--border-radius-md);
     cursor: pointer;
     width: 100%;
-    transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
 }
-.cta-button:hover {
+.cta-button:hover, #upload-m3u-button:hover {
     background-color: #0098d8; 
     box-shadow: 0 4px 15px rgba(var(--color-primary-accent-rgb), 0.3);
+    transform: scale(1.03) translateY(-1px); 
 }
+.cta-button:active, #upload-m3u-button:active {
+    transform: scale(0.97); 
+    transition-duration: 0.05s; 
+}
+
 .cta-button .material-symbols-rounded.spin {
     animation: spin 1s linear infinite;
 }
@@ -194,6 +212,7 @@ body {
     color: var(--color-text-muted);
 }
 .login-alternative p { margin-bottom: var(--spacing-md); }
+
 .secondary-button {
     display: inline-flex;
     align-items: center;
@@ -206,12 +225,17 @@ body {
     font-size: 0.9rem;
     border-radius: var(--border-radius-md);
     cursor: pointer;
-    transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 .secondary-button:hover {
     background-color: var(--color-primary-accent);
     color: white;
+    transform: scale(1.03) translateY(-1px);
 }
+.secondary-button:active {
+    transform: scale(0.97);
+    transition-duration: 0.05s;
+}
+
 .message-area {
     margin-top: var(--spacing-lg);
     padding: var(--spacing-md);
@@ -240,7 +264,7 @@ body {
     padding: var(--spacing-lg); 
     display: flex;
     flex-direction: column;
-    transition: transform 0.3s ease-in-out; 
+    transition: transform var(--transition-normal) ease-in-out, box-shadow var(--transition-normal) ease-in-out; 
     box-shadow: var(--shadow-medium);
 }
 
@@ -263,14 +287,17 @@ body {
     color: var(--color-primary-accent);
 }
 
-#sidebar-toggle-mobile { /* is an .icon-button */
+#sidebar-toggle-mobile { 
     display: none; 
     color: var(--color-text-primary);
     font-size: 2rem; 
 }
-#sidebar-toggle-mobile:hover {
-    background-color: rgba(var(--color-primary-accent-rgb), 0.1);
-    color: var(--color-primary-accent);
+#sidebar-toggle-mobile:hover { 
+    transform: scale(1.08);
+}
+#sidebar-toggle-mobile:active {
+    transform: scale(0.95);
+    transition-duration: 0.05s;
 }
 
 
@@ -300,6 +327,11 @@ body {
 .sidebar-footer .icon-button:hover {
     color: var(--color-primary-accent);
     background-color: rgba(var(--color-primary-accent-rgb), 0.1); 
+    transform: scale(1.08);
+}
+.sidebar-footer .icon-button:active {
+    transform: scale(0.95);
+    transition-duration: 0.05s;
 }
 
 
@@ -384,7 +416,7 @@ body {
 }
 
 /* --- Modals --- */
-.modal-overlay {
+.modal-overlay { 
     position: fixed;
     top: 0;
     left: 0;
@@ -398,8 +430,17 @@ body {
     align-items: center;
     z-index: 1000; 
     padding: var(--spacing-lg);
+    opacity: 0; 
+    visibility: hidden;
+    transition: opacity var(--transition-slow), visibility 0s linear var(--transition-slow);
 }
-.player-modal-content, .settings-modal-content {
+.modal-overlay.visible { 
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s;
+}
+
+.player-modal-content, .settings-modal-content { 
     background-color: var(--color-surface);
     padding: var(--spacing-lg);
     border-radius: var(--border-radius-xl); 
@@ -407,7 +448,16 @@ body {
     position: relative; 
     width: 100%;
     border: 1px solid var(--color-border);
+    transform: scale(0.92) translateY(10px); 
+    opacity: 0.8; 
+    transition: transform var(--transition-slow) ease-in-out, opacity var(--transition-slow) ease-in-out;
 }
+.modal-overlay.visible .player-modal-content,
+.modal-overlay.visible .settings-modal-content {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
 .player-modal-content { max-width: 90vw; max-height: 90vh; } 
 .settings-modal-content { max-width: 500px; }
 
@@ -418,14 +468,20 @@ body {
     background-color: #000;
     border-radius: var(--border-radius-lg);
 }
-.player-close { 
+#player-close-button { 
     position: absolute;
     top: var(--spacing-md);
     right: var(--spacing-md);
 }
-.player-close:hover {
+#player-close-button:hover { 
+    transform: scale(1.15) rotate(90deg);
     color: var(--color-text-primary);
 }
+#player-close-button:active {
+    transform: scale(1.05) rotate(45deg); 
+    transition-duration: 0.05s;
+}
+
 #player-stream-title {
     text-align: center;
     padding: var(--spacing-md) 0 var(--spacing-sm) 0;
@@ -444,11 +500,16 @@ body {
     cursor: pointer;
     padding: 8px;
     border-radius: 50%;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    /* transition already defined at the top for all buttons */
 }
 .icon-button:hover {
     background-color: rgba(var(--color-primary-accent-rgb), 0.1);
     color: var(--color-primary-accent);
+    transform: scale(1.08);
+}
+.icon-button:active {
+    transform: scale(0.95);
+    transition-duration: 0.05s;
 }
 .icon-button:focus-visible {
     outline: 2px solid var(--color-primary-accent);
@@ -521,9 +582,14 @@ body {
     }
 }
 
-/* Styling for Category Navigation (Placeholder for now) */
+/* Styling for Category Navigation */
 #category-nav .category-group {
     margin-bottom: var(--spacing-lg);
+}
+#category-nav h3 .material-symbols-rounded.category-title-icon { 
+    font-size: 1.3rem; 
+    color: var(--color-secondary-accent); 
+    margin-right: var(--spacing-sm);
 }
 #category-nav .category-group h3 {
     font-size: 1.1rem;
@@ -534,11 +600,6 @@ body {
     border-bottom: 1px solid var(--color-border);
     display: flex;
     align-items: center;
-}
-#category-nav .category-group h3 .category-title-icon {
-    font-size: 1.4rem; /* Slightly larger icon for category group titles */
-    margin-right: var(--spacing-sm);
-    color: var(--color-secondary-accent); /* Use secondary accent for group icons */
 }
 #category-nav ul {
     list-style: none;
@@ -551,35 +612,59 @@ body {
     border-radius: var(--border-radius-md);
     color: var(--color-text-body);
     cursor: pointer;
-    transition: background-color var(--transition-fast), color var(--transition-fast), padding-left var(--transition-fast);
-    position: relative; /* For pseudo-elements if needed */
+    transition: background-color var(--transition-fast), color var(--transition-fast), 
+                border-left-color var(--transition-fast), box-shadow var(--transition-fast),
+                transform var(--transition-fast);
+    position: relative; 
+    display: flex; 
+    align-items: center;
+    justify-content: space-between; /* For M3U groups to push count */
 }
 #category-nav li:hover {
     background-color: rgba(var(--color-primary-accent-rgb), 0.1);
     color: var(--color-primary-accent);
-    padding-left: calc(var(--spacing-md) + 4px); /* Indent on hover */
+    transform: translateX(3px) scale(1.01); 
 }
 #category-nav li.active {
     background-color: var(--color-primary-accent);
     color: white;
     font-weight: var(--font-weight-medium);
     box-shadow: var(--shadow-glow-accent);
+    transform: scale(1.02); 
 }
-#category-nav li .category-count { /* For M3U group counts */
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
+.category-item-icon { 
+    margin-right: var(--spacing-md);
+    font-size: 1.2rem; 
+    color: inherit; 
+    font-variation-settings: 'wght' 300; 
+}
+.category-name-text {
+    flex-grow: 1; 
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.category-count {
+    font-size: 0.85rem;
+    color: var(--color-text-muted); 
     margin-left: var(--spacing-sm);
+    background-color: rgba(0,0,0,0.15); /* Subtle background for count */
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    white-space: nowrap;
 }
+#category-nav li:hover .category-count,
 #category-nav li.active .category-count {
-    color: rgba(255,255,255,0.8);
+    color: inherit; 
+    background-color: rgba(255,255,255,0.1);
 }
 
-/* Styling for Channel/VOD Grid (Placeholder for now) */
+/* Styling for Channel/VOD Grid */
 .channels-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Adjust minmax as needed */
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
     gap: var(--spacing-lg);
-    padding: var(--spacing-md) 0; /* Padding around the grid */
+    padding: var(--spacing-md) 0; 
 }
 
 .channel-card {
@@ -587,11 +672,11 @@ body {
     border-radius: var(--border-radius-lg);
     box-shadow: var(--shadow-soft);
     overflow: hidden;
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-    border: 1px solid transparent; /* For active state */
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal), border-color var(--transition-normal);
+    border: 1px solid transparent; 
 }
 .channel-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-5px) scale(1.03); 
     box-shadow: var(--shadow-glow-accent-secondary);
 }
 .channel-card.active-stream,
@@ -599,16 +684,47 @@ body {
     border-color: var(--color-secondary-accent);
     box-shadow: var(--shadow-glow-accent-secondary);
 }
-.channel-card img {
-    width: 100%;
-    height: 250px; /* Adjust based on desired aspect ratio */
-    object-fit: cover;
-    background-color: var(--color-bg-deep); /* Placeholder bg for image */
+.channel-card:active { 
+    transform: translateY(-2px) scale(0.99); 
+    box-shadow: var(--shadow-soft); 
+    transition-duration: 0.05s;
 }
-.channel-card .card-body {
+
+.channel-card-thumbnail-container {
+    width: 100%;
+    padding-top: 140%; 
+    position: relative;
+    overflow: hidden;
+    background-color: var(--color-bg-deep);
+}
+.channel-card-thumbnail-container img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-normal);
+}
+.channel-card:hover .channel-card-thumbnail-container img {
+    transform: scale(1.05);
+}
+
+.channel-card .card-body { 
     padding: var(--spacing-md);
 }
-.channel-card .card-body h4 {
+.channel-card-chno {
+    display: inline-block;
+    background-color: var(--color-primary-accent);
+    color: white;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.8rem;
+    font-weight: var(--font-weight-semibold);
+    margin-right: var(--spacing-sm);
+    line-height: 1; 
+}
+.channel-card .channel-card-title { 
     color: var(--color-text-primary);
     font-size: 1rem;
     font-weight: var(--font-weight-medium);
@@ -616,10 +732,12 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: inline; 
 }
-.channel-card .card-body p {
+.channel-card .channel-card-info { 
     color: var(--color-text-muted);
     font-size: 0.85rem;
+    margin-top: var(--spacing-xs);
 }
 
 /* Series Info Card specific styling */
@@ -639,7 +757,7 @@ body {
     width: 2em !important;
     height: 2em !important;
     line-height: 2em !important;
-    font-size: 2.5em !important; /* Make the play icon larger */
+    font-size: 2.5em !important; 
 }
 .vjs-big-play-button:hover {
     background-color: rgba(var(--color-primary-accent-rgb), 0.9) !important;

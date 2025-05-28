@@ -5,6 +5,8 @@ window.currentServerUrl = null;
 window.originalChannelsForCategory = null; 
 window.currentCategoryType = null; 
 window.m3uChannels = null; 
+window.m3uEpgUrls = []; 
+window.m3uFileName = null; // Store M3U filename
 
 // Player elements and Video.js instance
 let videoJsPlayer = null;
@@ -94,8 +96,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 reader.onload = function(e) {
                     const m3uContent = e.target.result;
                     try {
+                        window.m3uEpgUrls = []; 
                         const channels = parseM3U(m3uContent);
+                        window.m3uFileName = file.name; // Store filename
                         console.log('Parsed M3U Channels:', channels);
+                        if (window.m3uEpgUrls.length > 0) {
+                            console.log("EPG URLs extracted from M3U:", window.m3uEpgUrls);
+                        }
                         if (channels.length > 0) {
                             displayUIMessage(`Successfully parsed ${channels.length} channels from ${file.name}. Displaying...`, 'success', loginMessageArea); 
                             window.m3uChannels = channels; 
@@ -107,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             mainAppView.style.display = 'flex';
                             if(searchInput) searchInput.value = ''; 
 
-                            displayM3UChannels(channels, file.name);
+                            displayM3UChannels(channels); 
                         } else {
                             displayUIMessage('No channels found in the M3U file.', 'error', loginMessageArea);
                         }
@@ -134,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (channelGridContainer) showContentPlaceholder(channelGridContainer, 'tv_off', 'Select a category to see content.');
 
     checkForExistingSession();
-    updateBreadcrumbs(null, null); // Initial breadcrumb state
+    updateBreadcrumbs(null, null); 
 
     loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -186,6 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.currentUserInfo = data.user_info;
                 window.currentServerUrl = serverUrlVal;
                 window.m3uChannels = null; 
+                window.m3uFileName = null; 
+                window.m3uEpgUrls = [];
 
                 console.log('User Info:', window.currentUserInfo);
                 console.log('Server Info:', data.server_info);
@@ -387,7 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    function displayM3UChannels(parsedChannels, fileName) {
+    function displayM3UChannels(parsedChannels) { 
         const categoryNavContainer = document.getElementById('category-nav');
         const channelGridContainer = document.getElementById('channel-grid-container');
         
@@ -397,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let m3uCategories = {};
         let hasGroups = false;
         parsedChannels.forEach(channel => {
-            const group = channel.group || `M3U: ${fileName}`; 
+            const group = channel.group || `M3U: ${window.m3uFileName || 'Playlist'}`; 
             if (channel.group) hasGroups = true;
             if (!m3uCategories[group]) {
                 m3uCategories[group] = [];
@@ -406,9 +415,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     
         if (!hasGroups && parsedChannels.length > 0) {
-            const defaultGroupName = `M3U: ${fileName}`;
+            const defaultGroupName = `M3U: ${window.m3uFileName || 'Playlist'}`;
             renderM3UCategories([{ name: defaultGroupName, type: 'm3u_group' }], m3uCategories, true);
-            // Breadcrumb updated by renderM3UCategories auto-click
         } else if (Object.keys(m3uCategories).length > 0) {
             const categoryListForRender = Object.keys(m3uCategories).map(groupName => ({
                 name: groupName,
@@ -431,11 +439,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
     
-        let html = `<div class="category-group"><h3><span class="material-symbols-rounded category-title-icon">list_alt</span> M3U Playlist</h3><ul>`;
+        let html = `<div class="category-group"><h3><span class="material-symbols-rounded category-title-icon">playlist_play</span> M3U: ${window.m3uFileName || 'Playlist'}</h3><ul>`;
         categoryList.forEach(cat => {
             const groupChannelCount = allM3UChannelsGrouped[cat.name] ? allM3UChannelsGrouped[cat.name].length : 0;
             html += `<li data-m3u-group-name="${encodeURIComponent(cat.name)}" data-category-type="m3u_group">
-                        ${cat.name} 
+                        <span class="material-symbols-rounded category-item-icon">folder_open</span>
+                        <span class="category-name-text">${cat.name}</span> 
                         <span class="category-count">(${groupChannelCount})</span>
                      </li>`;
         });
@@ -596,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const card = document.createElement('div');
                 card.className = 'channel-card';
                 card.dataset.streamId = categoryType === 'm3u' || categoryType === 'm3u_group' ? item.stream_id : (categoryType === 'series' ? item.series_id : (item.stream_id || item.id));
-                card.dataset.streamType = categoryType === 'm3u_group' ? 'm3u' : categoryType;
+                card.dataset.streamType = categoryType === 'm3u_group' ? 'm3u' : categoryType; 
                 card.dataset.streamName = encodeURIComponent(item.name || item.title || 'Unknown Stream');
                 if (categoryType === 'm3u' || categoryType === 'm3u_group') {
                     card.dataset.m3uUrl = item.url; 
@@ -604,15 +613,18 @@ document.addEventListener('DOMContentLoaded', () => {
     
                 let name = item.name || item.title || 'Unnamed Stream';
                 let iconUrl = item.logo || item.stream_icon || item.icon || item.icon_url || item.movie_image || item.cover || './placeholder.png';
+                let chnoDisplay = item.chno ? `<span class="channel-card-chno">${item.chno}</span>` : '';
                 
                 card.innerHTML = `
                     <div class="channel-card-thumbnail-container">
                         <img src="${iconUrl}" alt="${name}" onerror="this.onerror=null;this.src='./placeholder.png';">
                     </div>
                     <div class="channel-card-body">
-                        <h4 class="channel-card-title">${name}</h4>
+                        <h4 class="channel-card-title">${chnoDisplay} ${name}</h4>
                         ${((categoryType === 'vod' || ((categoryType === 'm3u' || categoryType === 'm3u_group') && item.duration)) && item.rating_5based) ? `<p class="channel-card-info">Rating: ${Number(item.rating_5based).toFixed(1)}/5</p>` : ''}
                         ${((categoryType === 'vod' || ((categoryType === 'm3u' || categoryType === 'm3u_group') && item.duration)) && item.duration && item.duration !== '-1') ? `<p class="channel-card-info">Duration: ${item.duration}</p>` : ''}
+                        ${item.language ? `<p class="channel-card-info language">Language: ${item.language}</p>` : ''}
+                        ${item.country ? `<p class="channel-card-info country">Country: ${item.country}</p>` : ''}
                     </div>
                 `;
                 card.addEventListener('click', () => handleStreamClick(card.dataset));
@@ -642,11 +654,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     
         let breadcrumbHtml = `<a href="#" id="breadcrumb-home">Home</a>`;
-        if (typeDisplay) {
+        if (typeDisplay && name) { 
             breadcrumbHtml += ` <span class="separator">&gt;</span> <span class="current-category-type">${typeDisplay}</span>`;
-        }
-        if (name) {
             breadcrumbHtml += ` <span class="separator">&gt;</span> <span class="current-category-name">${name}</span>`;
+        } else if (typeDisplay) { 
+            breadcrumbHtml += ` <span class="separator">&gt;</span> <span class="current-category-type">${typeDisplay}</span>`;
         }
         breadcrumbsBar.innerHTML = breadcrumbHtml;
         
@@ -659,16 +671,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (channelsContainer) showContentPlaceholder(channelsContainer, 'tv_off', 'Select a category to browse.');
                 
-                if (window.xtreamCategories) { 
+                // Reset current category type for accurate rendering
+                window.currentCategoryType = null; 
+                window.originalChannelsForCategory = null;
+
+                if (window.xtreamCategories && (Object.keys(window.xtreamCategories.live || {}).length > 0 || Object.keys(window.xtreamCategories.vod || {}).length > 0 || Object.keys(window.xtreamCategories.series || {}).length > 0 )) { 
                     renderCategories(window.xtreamCategories);
-                } else if (window.m3uChannels) { 
-                     displayM3UChannels(window.m3uChannels, "playlist"); 
+                } else if (window.m3uChannels && window.m3uChannels.length > 0) { 
+                     displayM3UChannels(window.m3uChannels); 
                 } else {
                      if (categoriesContainer) showContentPlaceholder(categoriesContainer, 'category', 'Load content via Login or M3U.');
                 }
                 if (document.getElementById('search-input')) document.getElementById('search-input').value = '';
                 updateBreadcrumbs(null, null); 
-                // No recursive call needed here. The updateBreadcrumbs already reset to Home.
             });
         }
     }
@@ -849,6 +864,8 @@ document.addEventListener('DOMContentLoaded', () => {
             window.originalChannelsForCategory = null;
             window.currentCategoryType = null;
             window.m3uChannels = null;
+            window.m3uEpgUrls = []; 
+            window.m3uFileName = null;
             if (searchInput) searchInput.value = '';
 
             console.log('Session cleared. Logged out.');
@@ -872,77 +889,93 @@ document.addEventListener('DOMContentLoaded', () => {
     function parseM3U(m3uString) {
         const lines = m3uString.split(/\r\n|\n|\r/);
         const channels = [];
-        let currentChannel = null;
-        let streamIdCounter = 0;
+        let currentChannel = {}; 
+        window.m3uEpgUrls = []; 
     
-        const firstNonEmptyLine = lines.find(line => line.trim() !== '');
-        if (!firstNonEmptyLine || !firstNonEmptyLine.trim().startsWith('#EXTM3U')) {
-            console.warn('M3U file does not start with #EXTM3U. Attempting to parse anyway.');
-        }
-    
+        let firstLineProcessed = false;
         for (const line of lines) {
             const trimmedLine = line.trim();
+    
+            if (!firstLineProcessed) {
+                if (!trimmedLine.startsWith('#EXTM3U')) {
+                    if (trimmedLine) { 
+                        throw new Error("Invalid M3U file: Missing #EXTM3U header on the first non-empty line.");
+                    }
+                    continue; 
+                }
+                firstLineProcessed = true;
+                const headerAttributesString = trimmedLine.substring(7).trim(); 
+                const attributeRegexHeader = /([a-zA-Z0-9_-]+)=("([^"]*)"|([^\s]*))/g;
+                let headerMatch;
+                while ((headerMatch = attributeRegexHeader.exec(headerAttributesString)) !== null) {
+                    if (headerMatch[1].toLowerCase() === 'x-tvg-url') {
+                        const urls = (headerMatch[3] || headerMatch[4]).split(',');
+                        urls.forEach(url => {
+                            if (url.trim()) window.m3uEpgUrls.push(url.trim());
+                        });
+                    }
+                }
+                if (window.m3uEpgUrls.length > 0) {
+                    console.log("EPG URLs found in M3U header:", window.m3uEpgUrls);
+                }
+                continue; 
+            }
+    
             if (trimmedLine.startsWith('#EXTINF:')) {
-                if (currentChannel) { 
-                    console.warn("Found new #EXTINF before a URL for the previous one. Discarding previous channel info:", currentChannel);
-                }
-                currentChannel = { attributes: {} };
-                const metadata = trimmedLine.substring(8).trim(); 
-                const lastCommaIndex = metadata.lastIndexOf(',');
+                currentChannel = { attributes: {} }; 
+                const infoLine = trimmedLine.substring(8);
+                const commaIndex = infoLine.lastIndexOf(',');
                 
-                let infoPart = metadata;
-                if (lastCommaIndex !== -1) {
-                    currentChannel.name = metadata.substring(lastCommaIndex + 1).trim();
-                    infoPart = metadata.substring(0, lastCommaIndex);
+                let namePart = '';
+                let attributesAndDuration = '';
+    
+                if (commaIndex !== -1) {
+                    namePart = infoLine.substring(commaIndex + 1).trim();
+                    attributesAndDuration = infoLine.substring(0, commaIndex).trim();
                 } else {
-                    currentChannel.name = infoPart.trim();
-                    infoPart = ""; 
+                    namePart = infoLine.trim(); 
+                    attributesAndDuration = "-1"; 
                 }
+                currentChannel.name = namePart;
     
-                const durationMatch = infoPart.match(/^(-?\d+)/);
-                if (durationMatch) {
-                    currentChannel.duration = parseInt(durationMatch[0], 10);
-                    infoPart = infoPart.substring(durationMatch[0].length).trim(); 
+                const firstSpaceIndex = attributesAndDuration.indexOf(' ');
+                if (firstSpaceIndex !== -1) {
+                    currentChannel.duration = attributesAndDuration.substring(0, firstSpaceIndex).trim();
+                    const attributesString = attributesAndDuration.substring(firstSpaceIndex + 1).trim();
+                    const attributeRegex = /([a-zA-Z0-9:._-]+)=("([^"]*)"|([^\s]*))/g; 
+                    let match;
+                    while ((match = attributeRegex.exec(attributesString)) !== null) {
+                        currentChannel.attributes[match[1].toLowerCase()] = match[3] || match[4]; 
+                    }
                 } else {
-                    currentChannel.duration = -1; 
+                    currentChannel.duration = attributesAndDuration.trim();
                 }
+                
+                currentChannel.logo = currentChannel.attributes['tvg-logo'] || currentChannel.attributes['logo'] || null;
+                currentChannel.group = currentChannel.attributes['group-title'] || null;
+                currentChannel.tvgId = currentChannel.attributes['tvg-id'] || null;
+                currentChannel.tvgName = currentChannel.attributes['tvg-name'] || null;
+                currentChannel.chno = currentChannel.attributes['tvg-chno'] || null; 
+                currentChannel.language = currentChannel.attributes['tvg-language'] || null;
+                currentChannel.country = currentChannel.attributes['tvg-country'] || null;
+                currentChannel.epgShift = currentChannel.attributes['tvg-shift'] || null;
     
-                const attributeRegex = /(\S+?)="([^"]*)"/g;
-                let match;
-                while ((match = attributeRegex.exec(infoPart)) !== null) {
-                    const key = match[1].toLowerCase().replace('-', ''); 
-                    currentChannel.attributes[key] = match[2];
-                }
-    
-                currentChannel.logo = currentChannel.attributes.tvglogo || currentChannel.attributes.logo;
-                currentChannel.group = currentChannel.attributes.grouptitle;
-                currentChannel.tvgId = currentChannel.attributes.tvgid;
-                currentChannel.tvgName = currentChannel.attributes.tvgname;
-    
-                if (currentChannel.name && /^\d+$/.test(currentChannel.name) && currentChannel.tvgName) {
+                if (currentChannel.name && !isNaN(currentChannel.name) && currentChannel.tvgName) {
                     currentChannel.name = currentChannel.tvgName;
                 }
-    
-            } else if (currentChannel && trimmedLine && !trimmedLine.startsWith('#')) {
-                currentChannel.url = trimmedLine;
-                currentChannel.stream_id = `m3u_${++streamIdCounter}_${Date.now()}`; 
-                channels.push(currentChannel);
-                currentChannel = null; 
-            } else if (trimmedLine && !trimmedLine.startsWith('#EXTM3U') && !trimmedLine.startsWith('#')) {
-                 if (!currentChannel) { 
-                    channels.push({
-                        name: `Unknown Channel ${++streamIdCounter}`,
-                        url: trimmedLine,
-                        stream_id: `m3u_${streamIdCounter}_${Date.now()}`,
-                        attributes: {},
-                        duration: -1,
-                        group: 'Unknown Group'
-                    });
+                if (!currentChannel.name && currentChannel.tvgName) {
+                    currentChannel.name = currentChannel.tvgName;
                 }
+                if (!currentChannel.name) {
+                    currentChannel.name = "Unnamed Channel";
+                }
+    
+            } else if (trimmedLine && !trimmedLine.startsWith('#') && currentChannel.name) { 
+                currentChannel.url = trimmedLine;
+                currentChannel.stream_id = `m3u_${channels.length + 1}_${Date.now()}`;
+                channels.push(currentChannel);
+                currentChannel = {}; 
             }
-        }
-        if (channels.length === 0 && !lines.some(line => line.trim().startsWith('#EXTINF'))) {
-             throw new Error("Invalid M3U file: No channel data found (#EXTINF lines).");
         }
         return channels;
     }
