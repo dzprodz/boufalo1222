@@ -300,6 +300,28 @@ body {
     transition-duration: 0.05s;
 }
 
+#active-source-display {
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin: 0 var(--spacing-md) var(--spacing-lg) var(--spacing-md); 
+    background-color: rgba(var(--color-primary-accent-rgb), 0.1); 
+    border: 1px solid var(--color-primary-accent);
+    border-radius: var(--border-radius-md);
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-primary-accent);
+    box-shadow: inset 0 0 10px rgba(var(--color-primary-accent-rgb), 0.2);
+    display: none; 
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#active-source-display .material-symbols-rounded { 
+    margin-right: var(--spacing-sm);
+    vertical-align: text-bottom; 
+    font-size: 1.1rem;
+}
+
 
 #category-nav {
     flex-grow: 1;
@@ -601,6 +623,9 @@ body {
     display: flex;
     align-items: center;
 }
+#category-nav .category-group h3 .category-title-icon {
+    margin-right: var(--spacing-sm);
+}
 #category-nav ul {
     list-style: none;
     padding: 0;
@@ -618,7 +643,7 @@ body {
     position: relative; 
     display: flex; 
     align-items: center;
-    justify-content: space-between; /* For M3U groups to push count */
+    justify-content: space-between; 
 }
 #category-nav li:hover {
     background-color: rgba(var(--color-primary-accent-rgb), 0.1);
@@ -648,10 +673,10 @@ body {
     font-size: 0.85rem;
     color: var(--color-text-muted); 
     margin-left: var(--spacing-sm);
-    background-color: rgba(0,0,0,0.15); /* Subtle background for count */
+    background-color: rgba(0,0,0,0.15); 
     padding: var(--spacing-xs) var(--spacing-sm);
     border-radius: var(--border-radius-sm);
-    white-space: nowrap;
+    white-space: nowrap; 
 }
 #category-nav li:hover .category-count,
 #category-nav li.active .category-count {

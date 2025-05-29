@@ -6,7 +6,7 @@ window.originalChannelsForCategory = null;
 window.currentCategoryType = null; 
 window.m3uChannels = null; 
 window.m3uEpgUrls = []; 
-window.m3uFileName = null; // Store M3U filename
+window.m3uFileName = null; 
 
 // Player elements and Video.js instance
 let videoJsPlayer = null;
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     try {
                         window.m3uEpgUrls = []; 
                         const channels = parseM3U(m3uContent);
-                        window.m3uFileName = file.name; // Store filename
+                        window.m3uFileName = file.name; 
                         console.log('Parsed M3U Channels:', channels);
                         if (window.m3uEpgUrls.length > 0) {
                             console.log("EPG URLs extracted from M3U:", window.m3uEpgUrls);
@@ -692,15 +692,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const decodedStreamName = decodeURIComponent(streamData.streamName);
         let streamUrlToPlay = '';
         let streamTypeMime = ''; 
+
+        // Retrieve elements here, once, as they are needed early.
+        const playerViewModal = document.getElementById('player-view-modal');
+        const playerStreamTitle = document.getElementById('player-stream-title');
+        const mainVideoPlayerElement = document.getElementById('main-video-player');
     
-        if (playerViewModal) playerViewModal.style.display = 'flex';
-        if (playerStreamTitle) playerStreamTitle.textContent = `Now Playing: ${decodedStreamName}`;
+        if (!playerViewModal || !mainVideoPlayerElement || !playerStreamTitle) {
+            console.error("Player modal, video element, or stream title element not found in DOM.");
+            displayUIMessage("Player UI elements missing. Cannot play stream.", "error", loginMessageArea); // Use loginMessageArea if playerStreamTitle is part of the modal
+            return;
+        }
     
         if (streamData.streamType === 'm3u') {
             streamUrlToPlay = streamData.m3uUrl; 
             if (!streamUrlToPlay) {
                 displayUIMessage('Error: M3U Stream URL not found in card data.', 'error', playerStreamTitle); 
-                if (playerViewModal) playerViewModal.style.display = 'none';
                 return;
             }
             if (streamUrlToPlay.toLowerCase().includes('.m3u8')) {
@@ -717,7 +724,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const serverUrl = window.currentServerUrl;
             if (!userInfo || !serverUrl) {
                 displayUIMessage('Session error. Please log in again.', 'error', playerStreamTitle);
-                if (playerViewModal) playerViewModal.style.display = 'none';
                 return;
             }
             const { username, password } = userInfo;
@@ -744,25 +750,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     break;
                 default:
                     displayUIMessage('Unknown stream type.', 'error', playerStreamTitle);
-                    if (playerViewModal) playerViewModal.style.display = 'none';
                     return;
             }
         }
     
         if (!streamUrlToPlay) {
-            console.error("Stream URL could not be determined.");
+            console.error("Stream URL could not be determined for stream ID:", streamData.streamId);
             displayUIMessage("Error: Could not determine stream URL.", "error", playerStreamTitle);
-            if (playerViewModal) playerViewModal.style.display = 'none';
             return;
         }
         
-        console.log(`Attempting to play: ${streamUrlToPlay} (Type: ${streamTypeMime || 'auto'})`);
+        // ***** IMPORTANT CHANGE: Show modal BEFORE initializing Video.js *****
+        playerViewModal.style.display = 'flex'; 
+        playerStreamTitle.textContent = `Now Playing: ${decodedStreamName}`;
+        // *********************************************************************
     
-        if (!mainVideoPlayerElement) {
-            console.error("Video element #main-video-player not found!");
-            if (playerViewModal) playerViewModal.style.display = 'none';
-            return;
-        }
+        console.log(`Attempting to play: ${streamUrlToPlay} (Type: ${streamTypeMime || 'auto'})`);
     
         if (videoJsPlayer) {
             videoJsPlayer.dispose();
@@ -772,7 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof videojs === 'undefined') {
             console.error("Video.js library is not loaded!");
             displayUIMessage("Error: Video player library not loaded.", "error", playerStreamTitle);
-            if (playerViewModal) playerViewModal.style.display = 'none';
+            playerViewModal.style.display = 'none'; 
             return;
         }
     
